@@ -24,7 +24,7 @@ if (!dir.exists("checkpoints")) {
 
 ctrl <- trainControl(
   method = "cv",
-  number = 5,
+  number = 10,
   classProbs = TRUE,
   summaryFunction = twoClassSummary,
   savePredictions = "final"
@@ -38,8 +38,8 @@ ctrl <- trainControl(
 ###########################################################################################################
 
 grid <- expand.grid(
-  C     = c(0.1, 1, 10),
-  sigma = c(0.01, 0.05, 0.1)
+  C = c(1, 5, 10, 20, 50, 100, 200, 500, 1000),
+  sigma = c(0.0001, 0.001, 0.005, 0.01)
 )
 
 # Train & Tune RF -> Train dataset Only

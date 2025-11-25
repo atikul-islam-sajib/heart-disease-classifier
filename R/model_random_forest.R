@@ -39,9 +39,9 @@ ctrl <- trainControl(
 ##############################################################################################
 
 grid <- expand.grid(
-  mtry = c(2, 4, 6, 8),
-  splitrule = c("gini", "extratrees"),
-  min.node.size = c(1, 3, 5, 7)
+  mtry = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+  splitrule = "gini",
+  min.node.size = c(5, 10, 15, 20)
 )
 
 # Train & Tune RF -> Train dataset Only
@@ -53,10 +53,13 @@ rf_tuned <- train(
   trControl = ctrl,
   tuneGrid = grid,
   importance = "impurity",
-  num.trees = 500,
-  sample.fraction = 0.8,
-  replace = TRUE
+  num.trees = 300,
+  sample.fraction = 0.1,
+  replace = TRUE,
+  regularization.factor = 0.01,
+  regularization.use = TRUE
 )
+
 
 cat("Best RF hyperparameters CV on train:\n")
 print(rf_tuned$bestTune)
