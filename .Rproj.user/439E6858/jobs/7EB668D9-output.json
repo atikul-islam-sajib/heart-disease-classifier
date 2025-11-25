@@ -1,0 +1,7 @@
+[1,"Installing 'ranger' ...\n"]
+[2,"trying URL 'https://cran.rstudio.com/bin/macosx/big-sur-arm64/contrib/4.4/ranger_0.17.0.tgz'\n"]
+[2,"Content type 'application/x-gzip' length 2488564 bytes (2.4 MB)\n=========================="]
+[2,"========================\ndownloaded 2.4 MB\n\n"]
+[1,"The downloaded binary packages are in\n"]
+[1,"\t/var/folders/_6/fpk79cm53rxgcj2gh5prtww00000gn/T//Rtmp1r8dh8/downloaded_packages\n"]
+[2,"\n\n✔ Package 'ranger' successfully installed.\n"]
