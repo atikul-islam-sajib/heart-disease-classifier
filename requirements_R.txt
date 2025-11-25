@@ -1,0 +1,18 @@
+# R package requirements for this project
+# Install each with: install.packages("packagename")
+
+caret
+ranger
+e1071
+iml
+GGally
+corrplot
+car
+pROC
+ggplot2
+dplyr
+readr
+
+# Optional:
+# install.packages("knitr")
+# install.packages("rmarkdown")
