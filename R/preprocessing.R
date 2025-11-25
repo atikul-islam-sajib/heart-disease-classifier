@@ -23,10 +23,12 @@ for (col in cat_cols) {
   val[[col]]   <- factor(val[[col]])
   test[[col]]  <- factor(test[[col]])
 }
+
 ###############################################################
 #     Convert HeartDisease to factor with labels No + Yes.    
 #     It is a target column and binary class classification   
 ###############################################################
+
 target <- function(x) {
   factor(x, levels = c(0, 1), labels = c("No", "Yes"))
 }
@@ -34,6 +36,11 @@ target <- function(x) {
 train$HeartDisease <- target(train$HeartDisease)
 val$HeartDisease   <- target(val$HeartDisease)
 test$HeartDisease  <- target(test$HeartDisease)
+
+###############################################################
+#                        Simple EDA
+#           Missing value check + Imbalanced or not
+###############################################################
 
 # Missing value check
 cat("Missing values in train:\n")
@@ -48,6 +55,7 @@ print(class_balance(train))
 #                           It is used the standard scaling approach
 # scaled value = (original value − mean of the feature) / standard deviation of the feature
 #############################################################################################
+
 num_cols <- c("Age", "RestingBP", "Cholesterol",
               "FastingBS", "MaxHR", "Oldpeak")
 
@@ -61,4 +69,4 @@ write.csv(train, "data/processed/train_scaled.csv", row.names = FALSE)
 write.csv(val,   "data/processed/val_scaled.csv",   row.names = FALSE)
 write.csv(test,  "data/processed/test_scaled.csv",  row.names = FALSE)
 
-cat("Preprocessing (types + scaling) completed\n")
+cat("Preprocessing is completed")
