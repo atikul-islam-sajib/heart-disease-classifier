@@ -44,7 +44,7 @@ grid <- expand.grid(
   min.node.size = c(1, 3, 5, 7)
 )
 
-# 1) Train & Tune RF -> Train dataset Only
+# Train & Tune RF -> Train dataset Only
 rf_tuned <- train(
   HeartDisease ~ .,
   data = train,
