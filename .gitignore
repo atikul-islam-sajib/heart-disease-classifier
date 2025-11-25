@@ -1,0 +1,34 @@
+# ---------------------------------------
+# R and RStudio files
+# ---------------------------------------
+
+.Rhistory
+.RData
+.Rds
+.Rproj.user/
+.Ruserdata
+
+# RStudio temporary session files
+.rsconnect/
+.Rapp.history
+
+# R Markdown caches and intermediate folders
+*_cache/
+cache/
+*_files/
+
+# Logs
+*.log
+
+# OS system files
+.DS_Store
+Thumbs.db
+
+# Python cache (if any)
+__pycache__/
+*.pyc
+
+# Notebook checkpoints
+notebooks/.ipynb_checkpoints/
+
+
