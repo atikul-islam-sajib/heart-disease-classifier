@@ -1,4 +1,4 @@
-# Heart Disease Prediction (Random Forest + SVM in R)**
+# Heart Disease Prediction (Random Forest + SVM in R)
 
 ## Project Overview
 
