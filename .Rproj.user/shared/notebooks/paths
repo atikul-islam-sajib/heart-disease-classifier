@@ -1,4 +1,8 @@
 /Users/shahmuhammadraditrahman/Desktop/heart-disease-classifier/artifacts/diagnostics_train_val_metrics.csv="5DCCCFE7"
+/Users/shahmuhammadraditrahman/Desktop/heart-disease-classifier/artifacts/final_results/test_metrics.csv="24F02317"
+/Users/shahmuhammadraditrahman/Desktop/heart-disease-classifier/artifacts/final_results/test_metrics.json="8030A2B5"
+/Users/shahmuhammadraditrahman/Desktop/heart-disease-classifier/artifacts/final_results/threshold_svm.json="4FEB31D6"
+/Users/shahmuhammadraditrahman/Desktop/heart-disease-classifier/artifacts/final_results/train_metrics.csv="6EB2243F"
 /Users/shahmuhammadraditrahman/Desktop/heart-disease-classifier/checkpoints/rf_results.csv="3A71402A"
 /Users/shahmuhammadraditrahman/Desktop/heart-disease-classifier/checkpoints/svm_results.csv="EC80D5DD"
 /Users/shahmuhammadraditrahman/Desktop/heart-disease-classifier/notebooks/eda.Rmd="716341E9"

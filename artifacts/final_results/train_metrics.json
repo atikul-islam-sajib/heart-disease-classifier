@@ -1,0 +1,22 @@
+[
+  {
+    "Model": "Random Forest",
+    "Accuracy": 0.8855,
+    "Sensitivity": 0.9503,
+    "Specificity": 0.8065,
+    "Precision": 0.8567,
+    "F1": 0.9011,
+    "AUC": 0.9586,
+    "_row": "Accuracy"
+  },
+  {
+    "Model": "SVM",
+    "Accuracy": 0.8818,
+    "Sensitivity": 0.9238,
+    "Specificity": 0.8306,
+    "Precision": 0.8692,
+    "F1": 0.8957,
+    "AUC": 0.9443,
+    "_row": "Accuracy1"
+  }
+]
