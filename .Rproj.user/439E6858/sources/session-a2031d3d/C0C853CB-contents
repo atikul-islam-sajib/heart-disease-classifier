@@ -5,9 +5,9 @@ source("R/utils.R")
 
 set_global_seed()
 
-# -----------------------------
+
 # Load Data
-# -----------------------------
+
 train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
 val   <- read.csv("data/processed/val_scaled.csv",   stringsAsFactors = TRUE)
 
@@ -17,22 +17,32 @@ val$HeartDisease   <- factor(val$HeartDisease)
 train$HeartDisease <- relevel(train$HeartDisease, ref = "Yes")
 val$HeartDisease   <- relevel(val$HeartDisease,   ref = "Yes")
 
-# -----------------------------
+
 # Create artifacts folder
-# -----------------------------
+
 if (!dir.exists("artifacts")) {
   dir.create("artifacts", recursive = TRUE)
 }
 
-# -----------------------------
+
 # Load tuned models from checkpoints
-# -----------------------------
+
 rf_tuned  <- readRDS("checkpoints/rf_tuned.rds")
 svm_tuned <- readRDS("checkpoints/svm_tuned.rds")
 
-# -----------------------------
-# Helper: Compute metrics
-# -----------------------------
+
+##############################################################################################
+#                               Model Performance Metrics
+#              ------------------------------------------------------------------
+#                        Accuracy: How many predictions the model got correct.
+#             Sensitivity: How well the model detects the "Yes" class -> people who do have heart disease.
+#             Specificity: How well the model detects the "No" class -> people who do not have heart disease).
+#                      Precision: Out of all predicted "Yes", how many were actually "Yes".
+#                      F1 Score: A balanced measure between Precision and Sensitivity.
+#                      AUC: Measures how well the model separates the two classes.
+#                                  Higher AUC = better performance.
+##############################################################################################
+
 compute_metrics <- function(model, data, label = "train") {
   prob <- predict(model, data, type = "prob")[, "Yes"]
   pred <- predict(model, data)
@@ -56,21 +66,19 @@ compute_metrics <- function(model, data, label = "train") {
   )
 }
 
-# -----------------------------
 #  RF Train vs Validation
-# -----------------------------
+
 rf_train_metrics <- compute_metrics(rf_tuned, train, "Train_RF")
 rf_val_metrics   <- compute_metrics(rf_tuned, val,   "Val_RF")
 
-# -----------------------------
 #  SVM Train vs Validation
-# -----------------------------
+
 svm_train_metrics <- compute_metrics(svm_tuned, train, "Train_SVM")
 svm_val_metrics   <- compute_metrics(svm_tuned, val,   "Val_SVM")
 
-# -----------------------------
+
 # Combine diagnostic results
-# -----------------------------
+
 diag_metrics <- rbind(
   rf_train_metrics,
   rf_val_metrics,
@@ -85,14 +93,18 @@ write.csv(diag_metrics,
           "artifacts/diagnostics_train_val_metrics.csv",
           row.names = FALSE)
 
-# -----------------------------
-# Plot: Train vs Validation Accuracy
-# -----------------------------
-plot_data <- diag_metrics %>%
-  dplyr::mutate(
-    Model = ifelse(grepl("RF", Dataset), "Random Forest", "SVM"),
-    Split = ifelse(grepl("Train", Dataset), "Train", "Validation")
-  )
+# Plot -> Train vs Validation Accuracy
+plot_data <- diag_metrics
+
+# Add model name -> in our case RF and SVM
+plot_data$Model <- ifelse(grepl("RF", plot_data$Dataset),
+                          "Random Forest",
+                          "SVM")
+
+# Add whether it is train or validation
+plot_data$Split <- ifelse(grepl("Train", plot_data$Dataset),
+                          "Train",
+                          "Validation")
 
 p <- ggplot(plot_data, aes(x = Model, y = Accuracy, fill = Split)) +
   geom_bar(stat = "identity", position = "dodge") +
@@ -105,4 +117,4 @@ print(p)
 ggsave("artifacts/diagnostics_accuracy_train_vs_val.png",
        plot = p, width = 6, height = 4)
 
-cat("Diagnostics (train vs validation metrics + plot) saved in artifacts/ ✔\n")
+cat("Diagnostics (train vs validation metrics + plot) saved in artifacts/\n")
