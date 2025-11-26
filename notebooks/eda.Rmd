@@ -56,9 +56,23 @@ cat_cols <- c("Sex", "ChestPainType", "RestingECG",
               "ExerciseAngina", "ST_Slope")
 ```
 
----
+# 1. Distribution of Target class
 
-# 1. Distribution of Numeric Features
+```{r pie_chart}
+pie_data <- train %>% 
+  count(HeartDisease) %>% 
+  mutate(prop = n / sum(n),
+         lbl = paste0(HeartDisease, " (", scales::percent(prop), ")"))
+
+ggplot(pie_data, aes(x = "", y = prop, fill = HeartDisease)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(title = "HeartDisease Class Distribution (Pie Chart)") +
+  geom_text(aes(label = lbl), position = position_stack(vjust = 0.5))
+```
+
+# 2. Distribution of Numeric Features
 
 ```{r}
 for (col in numeric_cols) {
@@ -71,9 +85,7 @@ for (col in numeric_cols) {
 }
 ```
 
----
-
-# 2. Distribution of Categorical Features
+# 3. Distribution of Categorical Features
 
 ```{r}
 for (col in cat_cols) {
@@ -86,9 +98,7 @@ for (col in cat_cols) {
 }
 ```
 
----
-
-# 3. Numeric Features vs Heart Disease (Boxplots)
+# 4. Numeric Features vs Heart Disease (Boxplots)
 
 ```{r}
 for (col in numeric_cols) {
@@ -101,9 +111,7 @@ for (col in numeric_cols) {
 }
 ```
 
----
-
-# 4. Categorical Features vs Heart Disease (Proportion Plots)
+# 5. Categorical Features vs Heart Disease (Proportion Plots)
 
 ```{r}
 for (col in cat_cols) {
@@ -117,9 +125,7 @@ for (col in cat_cols) {
 }
 ```
 
----
-
-# 5. Correlation Matrix
+# 6. Correlation Matrix
 
 ```{r}
 numeric_data <- train[, numeric_cols]
@@ -132,4 +138,52 @@ corrplot(cor_mat,
          number.cex = 0.7,
          tl.cex = 0.8,
          tl.col = "black")
+```
+
+# 7. Scatter Plots (Age vs Key Numeric Features)
+
+```{r}
+key_pairs <- c("RestingBP", "Cholesterol", "MaxHR", "Oldpeak")
+
+for (col in key_pairs) {
+  print(
+    ggplot(train, aes_string(x = "Age", y = col, color = "HeartDisease")) +
+      geom_point(alpha = 0.6, size = 2) +
+      theme_minimal() +
+      labs(
+        title = paste("Scatter Plot:", "Age vs", col),
+        x = "Age",
+        y = col
+      )
+  )
+}
+```
+
+# 8. Scatter Plot With Smooth Trend Line
+
+```{r}
+ggplot(train, aes(Age, MaxHR, color = HeartDisease)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = TRUE) +
+  theme_minimal() +
+  labs(title = "Age vs MaxHR with Trend Line")
+```
+
+# 9. Faceted Scatter Plot (MaxHR vs Oldpeak by Sex)
+
+```{r}
+ggplot(train, aes(MaxHR, Oldpeak, color = HeartDisease)) +
+  geom_point(alpha = 0.6) +
+  facet_wrap(~ Sex) +
+  theme_minimal() +
+  labs(title = "MaxHR vs Oldpeak (Faceted by Sex)")
+```
+
+# 10. Pairplot for Numeric Features
+
+```{r}
+ggpairs(
+  train[, c(numeric_cols, "HeartDisease")],
+  aes(color = HeartDisease, alpha = 0.5)
+)
 ```
