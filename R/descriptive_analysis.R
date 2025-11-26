@@ -59,6 +59,26 @@ cat_cols <- c("Sex", "ChestPainType", "RestingECG",
 
 
 ##############################################################################################
+#                                   Pie Chart of Class Balance
+#                             ---------------------------------------
+##############################################################################################
+
+pie_data <- train %>%
+  count(HeartDisease) %>%
+  mutate(prop = n / sum(n),
+         lbl = paste0(HeartDisease, " (", scales::percent(prop), ")"))
+
+p <- ggplot(pie_data, aes(x = "", y = prop, fill = HeartDisease)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(title = "HeartDisease Class Distribution (Pie Chart)") +
+  geom_text(aes(label = lbl), position = position_stack(vjust = 0.5))
+
+print(p)
+ggsave("figured/heartdisease_pie_chart.png", plot = p, width = 6, height = 6)
+
+##############################################################################################
 #                                 Summary of Numeric Features
 #                             ---------------------------------
 #                       Age and MaxHR look fairly normal shape with no big outliers
@@ -194,3 +214,67 @@ corrplot(cor_mat,
          tl.cex = 0.8,
          tl.col = "black")
 dev.off()
+
+
+##############################################################################################
+#                       Scatter Plots: Age vs Key Numeric Predictors
+#                   ----------------------------------------------------
+##############################################################################################
+
+key_pairs <- c("RestingBP", "Cholesterol", "MaxHR", "Oldpeak")
+
+for (col in key_pairs) {
+  p <- ggplot(train, aes_string(x = "Age", y = col, color = "HeartDisease")) +
+    geom_point(alpha = 0.6, size = 2) +
+    theme_minimal() +
+    labs(title = paste("Scatter Plot: Age vs", col),
+         x = "Age", y = col)
+  
+  print(p)
+  ggsave(filename = paste0("figured/age_vs_", col, "_scatter.png"),
+         plot = p, width = 6, height = 4)
+}
+
+
+##############################################################################################
+#                   Scatter Plot with LOESS Smooth Line: Age vs MaxHR
+#                 -------------------------------------------------------
+##############################################################################################
+
+p <- ggplot(train, aes(Age, MaxHR, color = HeartDisease)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = TRUE) +
+  theme_minimal() +
+  labs(title = "Age vs MaxHR with LOESS Trend")
+
+print(p)
+ggsave("figured/age_vs_maxhr_smooth.png", plot = p, width = 6, height = 4)
+
+
+##############################################################################################
+#              Faceted Scatter Plot: MaxHR vs Oldpeak Grouped by Sex
+#             ---------------------------------------------------------
+##############################################################################################
+
+p <- ggplot(train, aes(MaxHR, Oldpeak, color = HeartDisease)) +
+  geom_point(alpha = 0.6) +
+  facet_wrap(~ Sex) +
+  theme_minimal() +
+  labs(title = "MaxHR vs Oldpeak (Faceted by Sex)")
+
+print(p)
+ggsave("figured/maxhr_oldpeak_facet_sex.png", plot = p, width = 7, height = 5)
+
+
+##############################################################################################
+#                        Pairplot for All Numeric Features
+#                 ----------------------------------------------
+##############################################################################################
+
+p <- ggpairs(
+  train[, c(numeric_cols, "HeartDisease")],
+  aes(color = HeartDisease, alpha = 0.5)
+)
+
+print(p)
+ggsave("figured/numeric_pairplot.png", plot = p, width = 12, height = 12)
