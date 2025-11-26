@@ -1,0 +1,135 @@
+---
+title: "Heart Disease Dataset – Exploratory Analysis"
+author: "Atilul Islam Sajib, Zafrin Sultana, Sakib Hasan, & Mohammad Mahmudul Hasan"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(GGally)
+library(dplyr)
+library(corrplot)
+
+set.seed(123)
+
+check_missing <- function(df) colSums(is.na(df))
+class_balance <- function(df) table(df$HeartDisease)
+```
+
+# Introduction
+
+This report provides an exploratory data analysis (EDA) of the processed **Heart Disease Training dataset**.
+
+---
+
+# Load Dataset
+
+```{r}
+train <- read.csv("../data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+
+print_basic_info <- function(df, target_col) {
+  cat("\nData overview\n")
+  print(dim(df))
+  str(df)
+  
+  cat("\n\nSummary:\n")
+  print(summary(df))
+  
+  cat("\nMissing values:\n")
+  print(check_missing(df))
+  
+  cat("\nTarget class balance:\n")
+  print(class_balance(df))
+}
+
+print_basic_info(train, "HeartDisease")
+
+numeric_cols <- c("Age", "RestingBP", "Cholesterol",
+                  "FastingBS", "MaxHR", "Oldpeak")
+
+cat_cols <- c("Sex", "ChestPainType", "RestingECG",
+              "ExerciseAngina", "ST_Slope")
+```
+
+---
+
+# 1. Distribution of Numeric Features
+
+```{r}
+for (col in numeric_cols) {
+  print(
+    ggplot(train, aes_string(x = col)) +
+      geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+      theme_minimal() +
+      labs(title = paste("Distribution of", col))
+  )
+}
+```
+
+---
+
+# 2. Distribution of Categorical Features
+
+```{r}
+for (col in cat_cols) {
+  print(
+    ggplot(train, aes_string(x = col)) +
+      geom_bar(fill = "orange", color = "black") +
+      theme_minimal() +
+      labs(title = paste("Distribution of", col))
+  )
+}
+```
+
+---
+
+# 3. Numeric Features vs Heart Disease (Boxplots)
+
+```{r}
+for (col in numeric_cols) {
+  print(
+    ggplot(train, aes_string(x = "HeartDisease", y = col, fill = "HeartDisease")) +
+      geom_boxplot() +
+      theme_minimal() +
+      labs(title = paste(col, "by HeartDisease"))
+  )
+}
+```
+
+---
+
+# 4. Categorical Features vs Heart Disease (Proportion Plots)
+
+```{r}
+for (col in cat_cols) {
+  print(
+    ggplot(train, aes_string(x = col, fill = "HeartDisease")) +
+      geom_bar(position = "fill") +
+      theme_minimal() +
+      labs(title = paste(col, "vs HeartDisease (Proportion)"),
+           y = "Proportion")
+  )
+}
+```
+
+---
+
+# 5. Correlation Matrix
+
+```{r}
+numeric_data <- train[, numeric_cols]
+cor_mat <- cor(numeric_data)
+
+corrplot(cor_mat,
+         method = "color",
+         type = "upper",
+         addCoef.col = "black",
+         number.cex = 0.7,
+         tl.cex = 0.8,
+         tl.col = "black")
+```
