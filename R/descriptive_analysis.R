@@ -217,9 +217,12 @@ dev.off()
 
 
 ##############################################################################################
-#                       Scatter Plots: Age vs Key Numeric Predictors
-#                   ----------------------------------------------------
+#                    Scatter Plots: Age vs Key Numeric Features
+#                 -------------------------------------------------
+#     Shows how Age relates to RestingBP, Cholesterol, MaxHR, Oldpeak
+#              for the two groups (HeartDisease: Yes/No).
 ##############################################################################################
+
 
 key_pairs <- c("RestingBP", "Cholesterol", "MaxHR", "Oldpeak")
 
@@ -239,7 +242,10 @@ for (col in key_pairs) {
 ##############################################################################################
 #                   Scatter Plot with LOESS Smooth Line: Age vs MaxHR
 #                 -------------------------------------------------------
+#   Adds a smooth trend line to see how MaxHR changes with Age for both
+#                             HeartDisease groups.
 ##############################################################################################
+
 
 p <- ggplot(train, aes(Age, MaxHR, color = HeartDisease)) +
   geom_point(alpha = 0.5) +
@@ -252,9 +258,12 @@ ggsave("figured/age_vs_maxhr_smooth.png", plot = p, width = 6, height = 4)
 
 
 ##############################################################################################
-#              Faceted Scatter Plot: MaxHR vs Oldpeak Grouped by Sex
-#             ---------------------------------------------------------
+#                      Faceted Scatter Plot: MaxHR vs Oldpeak by Sex
+#                 --------------------------------------------------------
+#      Shows MaxHR–Oldpeak relationship separately for males and females
+#                 with HeartDisease groups highlighted by color.
 ##############################################################################################
+
 
 p <- ggplot(train, aes(MaxHR, Oldpeak, color = HeartDisease)) +
   geom_point(alpha = 0.6) +
@@ -267,9 +276,12 @@ ggsave("figured/maxhr_oldpeak_facet_sex.png", plot = p, width = 7, height = 5)
 
 
 ##############################################################################################
-#                        Pairplot for All Numeric Features
-#                 ----------------------------------------------
+#                      Pairplot of All Numeric Features (GGally)
+#                 ------------------------------------------------------
+#   Shows scatterplots, distributions, and correlations between all
+#      numeric features, colored by HeartDisease groups.
 ##############################################################################################
+
 
 p <- ggpairs(
   train[, c(numeric_cols, "HeartDisease")],
