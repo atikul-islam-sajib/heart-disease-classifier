@@ -44,7 +44,7 @@ grid <- expand.grid(
 
 # Train & Tune RF -> Train dataset Only
 
-svm_tuned <- train(
+svm_tuned <- caret::train(
   HeartDisease ~ .,
   data = train,
   method = "svmRadial",
@@ -82,7 +82,7 @@ best_svm <- readRDS("checkpoints/best_svm_params.rds")
 
 ctrl_final <- trainControl(method = "none", classProbs = TRUE)
 
-svm_final <- train(
+svm_final <- caret::train(
   HeartDisease ~ .,
   data = full_train,
   method = "svmRadial",

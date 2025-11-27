@@ -21,11 +21,8 @@ if (!dir.exists("artifacts/final_results")) {
 train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
 test  <- read.csv("data/processed/test_scaled.csv",  stringsAsFactors = TRUE)
 
-train$HeartDisease <- factor(train$HeartDisease)
-test$HeartDisease  <- factor(test$HeartDisease)
-
-train$HeartDisease <- relevel(train$HeartDisease, ref = "Yes")
-test$HeartDisease  <- relevel(test$HeartDisease,  ref = "Yes")
+train$HeartDisease <- factor(train$HeartDisease, levels = c("No", "Yes"))
+test$HeartDisease  <- factor(test$HeartDisease,  levels = c("No", "Yes"))
 
 # Load final models + tuned CV models
 rf_model  <- readRDS("checkpoints/model_random_forest.rds")
@@ -64,7 +61,7 @@ tune_threshold_youden <- function(model) {
       
       predicted_class <- ifelse(fold_data$Yes >= t, "Yes", "No")
       
-      cm <- confusionMatrix(
+      cm <- caret::confusionMatrix(
         factor(predicted_class, levels = c("No", "Yes")),
         factor(fold_data$obs,      levels = c("No", "Yes")),
         positive = "Yes"
@@ -106,13 +103,13 @@ write_json(list(threshold = best_t_svm),
 
 compute_metrics <- function(prob, pred_class, data) {
   
-  cm <- confusionMatrix(
+  cm <- caret::confusionMatrix(
     factor(pred_class, levels = c("No", "Yes")),
     data$HeartDisease,
     positive = "Yes"
   )
   
-  roc_obj <- roc(data$HeartDisease, prob, levels = c("No", "Yes"))
+  roc_obj <- pROC::roc(data$HeartDisease, prob, levels = c("No", "Yes"))
   
   data.frame(
     Accuracy    = cm$overall["Accuracy"],
@@ -120,7 +117,7 @@ compute_metrics <- function(prob, pred_class, data) {
     Specificity = cm$byClass["Specificity"],
     Precision   = cm$byClass["Precision"],
     F1          = cm$byClass["F1"],
-    AUC         = auc(roc_obj)
+    AUC         = as.numeric(pROC::auc(roc_obj))
   )
 }
 
@@ -157,8 +154,8 @@ plot_confusion <- function(cm, title) {
     labs(title = title)
 }
 
-cm_rf_train  <- confusionMatrix(factor(rf_pred_train, levels=c("No","Yes")), train$HeartDisease, positive="Yes")
-cm_svm_train <- confusionMatrix(factor(svm_pred_train, levels=c("No","Yes")), train$HeartDisease, positive="Yes")
+cm_rf_train  <- caret::confusionMatrix(factor(rf_pred_train, levels=c("No","Yes")), train$HeartDisease, positive="Yes")
+cm_svm_train <- caret::confusionMatrix(factor(svm_pred_train, levels=c("No","Yes")), train$HeartDisease, positive="Yes")
 
 ggsave("artifacts/final_results/confusion_rf_train.png",
        plot_confusion(cm_rf_train, "RF Confusion Matrix (Train)"),
@@ -191,8 +188,8 @@ write.csv(metrics_test,
           row.names = FALSE)
 
 # Save TEST confusion matrices
-cm_rf_test  <- confusionMatrix(factor(rf_pred_test, levels=c("No","Yes")), test$HeartDisease, positive="Yes")
-cm_svm_test <- confusionMatrix(factor(svm_pred_test, levels=c("No","Yes")), test$HeartDisease, positive="Yes")
+cm_rf_test  <- caret::confusionMatrix(factor(rf_pred_test, levels=c("No","Yes")), test$HeartDisease, positive="Yes")
+cm_svm_test <- caret::confusionMatrix(factor(svm_pred_test, levels=c("No","Yes")), test$HeartDisease, positive="Yes")
 
 ggsave("artifacts/final_results/confusion_rf_test.png",
        plot_confusion(cm_rf_test, "RF Confusion Matrix (Test)"),
@@ -205,8 +202,8 @@ ggsave("artifacts/final_results/confusion_svm_test.png",
 
 # SAVE ROC CURVE -> Test
 
-roc_rf <- roc(test$HeartDisease, rf_prob_test, levels = c("No","Yes"))
-roc_svm <- roc(test$HeartDisease, svm_prob_test, levels = c("No","Yes"))
+roc_rf <- pROC::roc(test$HeartDisease, rf_prob_test, levels = c("No","Yes"))
+roc_svm <- pROC::roc(test$HeartDisease, svm_prob_test, levels = c("No","Yes"))
 
 png("artifacts/final_results/roc_curve_rf_svm.png",
     width = 700, height = 600)
