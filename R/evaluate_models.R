@@ -217,7 +217,24 @@ dev.off()
 cat("Train + Test evaluation with threshold tuning completed\n")
 
 ################################################################################################
-#                           METRIC COMPARISON PLOT 
+#                                     METRIC COMPARISON PLOT 
+#                          ---------------------------------------------
+#                 After calculating all final evaluation metrics on the TEST SET
+#                 for both Random Forest and SVM models, we now visualize them.
+#
+#                                     Why plot the metrics?
+#                                   -----------------------
+#                       Because numbers in tables can be hard to compare.
+#                     A barplot makes differences between models obvious.
+#                     Helps us quickly see which model performs better in:
+#                                       - Accuracy
+#                         - Sensitivity (Recall for "Yes" class)
+#                         - Specificity (Recall for "No" class)
+#                                       - Precision
+#                                       - F1 Score
+#                         - AUC (overall ranking performance)
+#                               The output is saved as:
+#                     artifacts/final_results/metric_comparison.png
 ################################################################################################
 
 library(reshape2)
