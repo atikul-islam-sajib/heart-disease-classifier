@@ -218,3 +218,34 @@ legend("bottomright",
 dev.off()
 
 cat("Train + Test evaluation with threshold tuning completed\n")
+
+################################################################################################
+#                           METRIC COMPARISON PLOT 
+################################################################################################
+
+library(reshape2)
+
+metric_long <- melt(metrics_test,
+                    id.vars = "Model",
+                    measure.vars = c("Accuracy", "Sensitivity",
+                                     "Specificity", "Precision",
+                                     "F1", "AUC"),
+                    variable.name = "Metric",
+                    value.name = "Value")
+
+p <- ggplot(metric_long, aes(x = Metric, y = Value, fill = Model)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title = "Performance Metrics Comparison: Random Forest vs SVM",
+    x = "Metric",
+    y = "Score"
+  ) +
+  scale_fill_manual(values = c("Random Forest" = "steelblue",
+                               "SVM" = "firebrick")) +
+  ylim(0, 1)
+
+ggsave("artifacts/final_results/metric_comparison.png",
+       p, width = 8, height = 5)
+
+cat("Metric comparison plot saved.\n")
