@@ -1,0 +1,304 @@
+---
+title: "Random Forest & SVM Modeling – RMarkdown Notebook"
+author: ""
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+library(caret)
+library(ranger)
+library(pROC)
+library(ggplot2)
+library(e1071)
+
+set.seed(123)
+```
+
+# Load Data
+
+```{r}
+train <- read.csv("../data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+val   <- read.csv("../data/processed/val_scaled.csv",   stringsAsFactors = TRUE)
+
+train$HeartDisease <- factor(train$HeartDisease)
+val$HeartDisease   <- factor(val$HeartDisease)
+
+train$HeartDisease <- relevel(train$HeartDisease, ref = "Yes")
+val$HeartDisease   <- relevel(val$HeartDisease, ref = "Yes")
+```
+
+---
+
+# 1. Random Forest: Hyperparameter Tuning (Warnings Suppressed)
+
+```{r}
+ctrl <- trainControl(
+  method = "cv",
+  number = 5,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  savePredictions = "final"
+)
+
+grid_rf <- expand.grid(
+  mtry = 1:15,
+  splitrule = "gini",
+  min.node.size = c(5, 10, 15, 20)
+)
+
+rf_tuned <- suppressWarnings(suppressMessages(
+  train(
+    HeartDisease ~ .,
+    data = train,
+    method = "ranger",
+    metric = "ROC",
+    trControl = ctrl,
+    tuneGrid = grid_rf,
+    importance = "impurity",
+    num.trees = 300,
+    sample.fraction = 0.1,
+    replace = TRUE,
+    regularization.factor = 0.01,
+    regularization.use = TRUE
+  )
+))
+
+rf_tuned$bestTune
+```
+
+---
+
+# Random Forest: Tuning Results Table
+
+```{r}
+rf_results <- rf_tuned$results[, c("mtry","splitrule","min.node.size","ROC","Sens","Spec")]
+head(rf_results)
+```
+
+---
+
+# 2. Final Random Forest Model (Train + Val)
+
+```{r}
+full_train <- rbind(train, val)
+best_rf <- rf_tuned$bestTune
+
+rf_final <- suppressWarnings(suppressMessages(
+  train(
+    HeartDisease ~ .,
+    data = full_train,
+    method = "ranger",
+    trControl = trainControl(method = "none", classProbs = TRUE),
+    tuneGrid = best_rf,
+    importance = "impurity",
+    num.trees = 500,
+    sample.fraction = 0.8,
+    replace = TRUE
+  )
+))
+
+rf_final
+```
+
+---
+
+# 3. SVM: Hyperparameter Tuning (No Warnings Needed)
+
+```{r}
+ctrl_svm <- trainControl(
+  method = "cv",
+  number = 10,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  savePredictions = "final"
+)
+
+grid_svm <- expand.grid(
+  C = c(1, 5, 10, 20, 50, 100),
+  sigma = c(0.0001, 0.001, 0.005, 0.01)
+)
+
+svm_tuned <- train(
+  HeartDisease ~ .,
+  data = train,
+  method = "svmRadial",
+  metric = "ROC",
+  trControl = ctrl_svm,
+  tuneGrid = grid_svm
+)
+
+svm_tuned$bestTune
+```
+
+---
+
+# SVM: Tuning Result Table
+
+```{r}
+svm_results <- svm_tuned$results[, c("C","sigma","ROC","Sens","Spec")]
+head(svm_results)
+```
+
+---
+
+# 4. Final SVM Model (Train + Val)
+
+```{r}
+best_svm <- svm_tuned$bestTune
+
+svm_final <- train(
+  HeartDisease ~ .,
+  data = full_train,
+  method = "svmRadial",
+  trControl = trainControl(method = "none", classProbs = TRUE),
+  tuneGrid = best_svm
+)
+
+svm_final
+```
+
+---
+
+# 5. Threshold Tuning – Youden’s J
+
+```{r}
+tune_threshold_youden <- function(model) {
+  preds <- model$pred
+  folds <- unique(preds$Resample)
+  best_thresholds <- c()
+  
+  for (f in folds) {
+    fold_data <- preds[preds$Resample == f, ]
+    
+    best_value <- -Inf
+    best_t <- 0.5
+    
+    for (t in seq(0.001, 0.999, by = 0.001)) {
+      predicted_class <- ifelse(fold_data$Yes >= t, "Yes", "No")
+      
+      cm <- confusionMatrix(
+        factor(predicted_class, levels=c("No","Yes")),
+        factor(fold_data$obs,      levels=c("No","Yes")),
+        positive="Yes"
+      )
+      
+      J <- cm$byClass["Sensitivity"] + cm$byClass["Specificity"] - 1
+      
+      if (!is.na(J) && J > best_value) {
+        best_value <- J
+        best_t <- t
+      }
+    }
+    
+    best_thresholds <- c(best_thresholds, best_t)
+  }
+  
+  mean(best_thresholds)
+}
+
+best_t_rf  <- tune_threshold_youden(rf_tuned)
+best_t_svm <- tune_threshold_youden(svm_tuned)
+
+best_t_rf
+best_t_svm
+```
+
+---
+
+# 6. Evaluate Models: TRAIN Set
+
+```{r}
+compute_metrics <- function(prob, pred_class, data) {
+  cm <- confusionMatrix(
+    factor(pred_class, levels=c("No","Yes")),
+    data$HeartDisease,
+    positive="Yes"
+  )
+  
+  roc_obj <- roc(data$HeartDisease, prob, levels=c("No","Yes"))
+  
+  data.frame(
+    Accuracy    = cm$overall["Accuracy"],
+    Sensitivity = cm$byClass["Sensitivity"],
+    Specificity = cm$byClass["Specificity"],
+    Precision   = cm$byClass["Precision"],
+    F1          = cm$byClass["F1"],
+    AUC         = auc(roc_obj)
+  )
+}
+
+rf_prob_train  <- predict(rf_final, train, type="prob")[,"Yes"]
+svm_prob_train <- predict(svm_final, train, type="prob")[,"Yes"]
+
+rf_pred_train  <- ifelse(rf_prob_train >= best_t_rf, "Yes","No")
+svm_pred_train <- ifelse(svm_prob_train >= best_t_svm, "Yes","No")
+
+train_metrics <- rbind(
+  cbind(Model="RF",  compute_metrics(rf_prob_train,  rf_pred_train, train)),
+  cbind(Model="SVM", compute_metrics(svm_prob_train, svm_pred_train, train))
+)
+
+train_metrics
+```
+
+---
+
+# 7. Evaluate Models: TEST Set
+
+```{r}
+test <- read.csv("../data/processed/test_scaled.csv", stringsAsFactors = TRUE)
+test$HeartDisease <- factor(test$HeartDisease)
+test$HeartDisease <- relevel(test$HeartDisease, ref="Yes")
+
+rf_prob_test  <- predict(rf_final, test, type="prob")[,"Yes"]
+svm_prob_test <- predict(svm_final, test, type="prob")[,"Yes"]
+
+rf_pred_test  <- ifelse(rf_prob_test >= best_t_rf, "Yes","No")
+svm_pred_test <- ifelse(svm_prob_test >= best_t_svm, "Yes","No")
+
+test_metrics <- rbind(
+  cbind(Model="RF",  compute_metrics(rf_prob_test,  rf_pred_test, test)),
+  cbind(Model="SVM", compute_metrics(svm_prob_test, svm_pred_test, test))
+)
+
+test_metrics
+```
+
+---
+
+# 8. Confusion Matrices (Inline Plots)
+
+```{r}
+plot_confusion <- function(cm, title) {
+  df <- as.data.frame(cm$table)
+  ggplot(df, aes(Prediction, Reference, fill=Freq)) +
+    geom_tile() +
+    geom_text(aes(label=Freq), color="white", size=5) +
+    scale_fill_gradient(low="blue", high="red") +
+    theme_minimal() +
+    labs(title=title)
+}
+
+cm_rf_test  <- confusionMatrix(factor(rf_pred_test, levels=c("No","Yes")), test$HeartDisease)
+cm_svm_test <- confusionMatrix(factor(svm_pred_test, levels=c("No","Yes")), test$HeartDisease)
+
+plot_confusion(cm_rf_test, "RF Confusion Matrix (Test)")
+plot_confusion(cm_svm_test, "SVM Confusion Matrix (Test)")
+```
+
+---
+
+# 9. ROC Curve: RF vs SVM
+
+```{r}
+roc_rf  <- roc(test$HeartDisease, rf_prob_test)
+roc_svm <- roc(test$HeartDisease, svm_prob_test)
+
+plot(roc_rf, col="blue", lwd=2, main="ROC Curve: RF vs SVM")
+plot(roc_svm, col="red",  lwd=2, add=TRUE)
+legend("bottomright", legend=c("RF","SVM"), col=c("blue","red"), lwd=2)
+```
