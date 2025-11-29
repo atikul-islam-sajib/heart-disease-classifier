@@ -1,12 +1,12 @@
 [
   {
     "Model": "Random Forest",
-    "Accuracy": 0.8967,
-    "Sensitivity": 0.9286,
-    "Specificity": 0.8605,
-    "Precision": 0.8835,
-    "F1": 0.9055,
-    "AUC": 0.9408,
+    "Accuracy": 0.8804,
+    "Sensitivity": 0.9388,
+    "Specificity": 0.814,
+    "Precision": 0.8519,
+    "F1": 0.8932,
+    "AUC": 0.936,
     "_row": "Accuracy"
   },
   {

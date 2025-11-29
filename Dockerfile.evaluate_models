@@ -1,0 +1,33 @@
+FROM r-base:latest
+
+WORKDIR /app
+COPY . .
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libgit2-dev \
+    libicu-dev \
+    build-essential \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libtiff5-dev \
+    libcairo2-dev \
+    libblas-dev \
+    liblapack-dev
+
+# Install R packages needed for evaluation
+RUN R -e "install.packages(c( \
+    'caret', \
+    'pROC', \
+    'ggplot2', \
+    'jsonlite', \
+    'reshape2', \
+    'ranger', \
+    'kernlab' \
+), repos='https://cloud.r-project.org/')"
+
+CMD ["Rscript", "R/evaluate_models.R"]

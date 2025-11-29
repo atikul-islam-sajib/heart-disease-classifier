@@ -1,0 +1,9 @@
+FROM r-base:latest
+
+WORKDIR /app
+
+COPY . .
+
+RUN R -e "install.packages(c('caret', 'e1071', 'kernlab'), repos='https://cloud.r-project.org/')"
+
+CMD ["Rscript", "R/model_svm.R"]

@@ -8,9 +8,7 @@ services:
       dockerfile: Dockerfile.load_data
     container_name: load_datas
     volumes:
-      - type: bind
-        source: ./data/
-        target: /app/data/
+      - ./data/:/app/data/
 
   preprocess:
     build:
@@ -18,12 +16,8 @@ services:
       dockerfile: Dockerfile.preprocessing
     container_name: preprocessing
     volumes:
-      - type: bind
-        source: ./data/
-        target: /app/data/
-      - type: bind
-        source: ./artifacts/
-        target: /app/artifacts/
+      - ./data/:/app/data/
+      - ./artifacts/:/app/artifacts/
     depends_on:
       - load_data
 
@@ -33,14 +27,42 @@ services:
       dockerfile: Dockerfile.descriptive_analysis
     container_name: descriptive_analysis
     volumes:
-      - type: bind
-        source: ./data/
-        target: /app/data/
-      - type: bind
-        source: ./artifacts/
-        target: /app/artifacts/
-      - type: bind
-        source: ./figured/
-        target: /app/figured/
+      - ./data/:/app/data/
+      - ./artifacts/:/app/artifacts/
+      - ./figured/:/app/figured/
     depends_on:
       - preprocess
+
+  model_random_forest:
+    build: 
+      context: .
+      dockerfile: Dockerfile.model_random_forest
+    container_name: Random-Forest
+    volumes:
+      - ./data/:/app/data/
+      - ./checkpoints/:/app/checkpoints/
+    depends_on:
+      - preprocess
+
+  model_svm:
+    build: 
+      context: .
+      dockerfile: Dockerfile.model_svm
+    container_name: SVM
+    volumes:
+      - ./data/:/app/data/
+      - ./checkpoints/:/app/checkpoints/
+    depends_on:
+      - model_random_forest
+
+  model_evaluation:
+    build:
+      context: .
+      dockerfile: Dockerfile.evaluate_models
+    container_name: evaluate_models
+    volumes:
+      - ./data/:/app/data/
+      - ./checkpoints/:/app/checkpoints/
+      - ./artifacts/:/app/artifacts/
+    depends_on:
+      - model_svm
