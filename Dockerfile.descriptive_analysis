@@ -1,0 +1,9 @@
+FROM r-base:latest
+
+WORKDIR /app
+
+COPY . .
+
+RUN R -e "install.packages(c('ggplot2','GGally','dplyr','corrplot','scales'), repos='https://cloud.r-project.org/')"
+
+CMD ["Rscript", "R/descriptive_analysis.R"]

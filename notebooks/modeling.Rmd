@@ -302,3 +302,44 @@ plot(roc_rf, col="blue", lwd=2, main="ROC Curve: RF vs SVM")
 plot(roc_svm, col="red",  lwd=2, add=TRUE)
 legend("bottomright", legend=c("RF","SVM"), col=c("blue","red"), lwd=2)
 ```
+
+
+---
+
+# 10. Metric Comparison Plot (Display Only)
+
+```{r metric-comparison, echo=TRUE, message=FALSE, warning=FALSE}
+################################################################################
+#                     METRIC COMPARISON PLOT
+# ------------------------------------------------------------------------------
+# Shows side-by-side comparison of Accuracy, Sensitivity, Specificity,
+# Precision, F1, and AUC for RF and SVM on the TEST SET.
+################################################################################
+
+library(reshape2)
+library(ggplot2)
+
+# Rename for clarity
+metrics_test <- test_metrics
+
+# Convert to long format for plotting
+metric_long <- melt(
+  metrics_test,
+  id.vars = "Model",
+  measure.vars = c("Accuracy", "Sensitivity", "Specificity",
+                   "Precision", "F1", "AUC"),
+  variable.name = "Metric",
+  value.name = "Value"
+)
+
+# Plot
+ggplot(metric_long, aes(x = Metric, y = Value, fill = Model)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.7)) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title = "Performance Metrics Comparison: Random Forest vs SVM (Test Set)",
+    x = "Metric",
+    y = "Score"
+  ) +
+  scale_fill_manual(values = c("RF" = "steelblue", "SVM" = "firebrick")) +
+  ylim(0, 1)

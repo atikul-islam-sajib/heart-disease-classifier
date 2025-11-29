@@ -1,0 +1,9 @@
+FROM r-base:latest
+
+WORKDIR /app
+
+COPY . .
+
+RUN R -e "install.packages(c('readr','dplyr','caret'), repos='https://cloud.r-project.org/')"
+
+CMD ["Rscript", "R/preprocessing.R"]

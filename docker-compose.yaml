@@ -1,0 +1,46 @@
+name: "Heart-Disease-Classifier"
+
+services:
+
+  load_data:
+    build:
+      context: .
+      dockerfile: Dockerfile.load_data
+    container_name: load_datas
+    volumes:
+      - type: bind
+        source: ./data/
+        target: /app/data/
+
+  preprocess:
+    build:
+      context: .
+      dockerfile: Dockerfile.preprocessing
+    container_name: preprocessing
+    volumes:
+      - type: bind
+        source: ./data/
+        target: /app/data/
+      - type: bind
+        source: ./artifacts/
+        target: /app/artifacts/
+    depends_on:
+      - load_data
+
+  descriptive_analysis:
+    build:
+      context: .
+      dockerfile: Dockerfile.descriptive_analysis
+    container_name: descriptive_analysis
+    volumes:
+      - type: bind
+        source: ./data/
+        target: /app/data/
+      - type: bind
+        source: ./artifacts/
+        target: /app/artifacts/
+      - type: bind
+        source: ./figured/
+        target: /app/figured/
+    depends_on:
+      - preprocess
