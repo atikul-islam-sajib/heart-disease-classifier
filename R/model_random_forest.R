@@ -26,7 +26,7 @@ if (!dir.exists("checkpoints")) {
 
 ctrl <- trainControl(
   method = "cv",
-  number = 5,
+  number = 10,
   classProbs = TRUE,
   summaryFunction = twoClassSummary,
   savePredictions = "final"
@@ -42,7 +42,7 @@ ctrl <- trainControl(
 
 grid <- expand.grid(
   mtry = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
-  splitrule = "gini",
+  splitrule = c("gini", "extratrees", "hellinger"),
   min.node.size = c(5, 10, 15, 20)
 )
 
@@ -113,8 +113,8 @@ rf_final <- caret::train(
   trControl = ctrl_final,
   tuneGrid = best_rf,
   importance = "impurity",
-  num.trees = 500,
-  sample.fraction = 0.8,
+  num.trees = 300,
+  sample.fraction = 0.01,
   replace = TRUE
 )
 
