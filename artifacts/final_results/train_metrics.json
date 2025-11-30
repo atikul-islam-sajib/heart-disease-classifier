@@ -1,22 +1,22 @@
 [
   {
     "Model": "Random Forest",
-    "Accuracy": 0.8291,
-    "Sensitivity": 0.8841,
-    "Specificity": 0.7621,
-    "Precision": 0.819,
-    "F1": 0.8503,
-    "AUC": 0.9053,
+    "Accuracy": 0.8182,
+    "Sensitivity": 0.8543,
+    "Specificity": 0.7742,
+    "Precision": 0.8217,
+    "F1": 0.8377,
+    "AUC": 0.9041,
     "_row": "Accuracy"
   },
   {
     "Model": "SVM",
-    "Accuracy": 0.8818,
-    "Sensitivity": 0.9238,
-    "Specificity": 0.8306,
-    "Precision": 0.8692,
-    "F1": 0.8957,
-    "AUC": 0.9443,
+    "Accuracy": 0.8836,
+    "Sensitivity": 0.9106,
+    "Specificity": 0.8508,
+    "Precision": 0.8814,
+    "F1": 0.8958,
+    "AUC": 0.9413,
     "_row": "Accuracy1"
   }
 ]

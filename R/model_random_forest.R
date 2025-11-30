@@ -26,7 +26,7 @@ if (!dir.exists("checkpoints")) {
 
 ctrl <- trainControl(
   method = "cv",
-  number = 10,
+  number = 5,
   classProbs = TRUE,
   summaryFunction = twoClassSummary,
   savePredictions = "final"
@@ -43,7 +43,7 @@ ctrl <- trainControl(
 grid <- expand.grid(
   mtry = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11),
   splitrule = c("gini", "extratrees", "hellinger"),
-  min.node.size = c(5, 10, 15, 20)
+  min.node.size = c(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
 )
 
 ##############################################################################################
