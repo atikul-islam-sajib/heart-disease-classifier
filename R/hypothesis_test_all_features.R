@@ -137,6 +137,8 @@ chi_square <- function(feature_name, feature_vector, target_vector) {
 #             FastingBS, MaxHR, Oldpeak
 ############################################################
 
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+
 numeric_cols <- c("Age", "RestingBP", "Cholesterol",
                   "FastingBS", "MaxHR", "Oldpeak")
 
@@ -156,6 +158,8 @@ cat("\n*******Chi-Square Tests for Each Categorical Features*******\n")
 #             Sex, ChestPainType, RestingECG
 #                  ExerciseAngina, ST_Slope
 ############################################################
+
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
 
 categorical_cols <- c("Sex", "ChestPainType", "RestingECG",
                       "ExerciseAngina", "ST_Slope")
