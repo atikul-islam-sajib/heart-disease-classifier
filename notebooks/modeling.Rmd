@@ -343,3 +343,4 @@ ggplot(metric_long, aes(x = Metric, y = Value, fill = Model)) +
   ) +
   scale_fill_manual(values = c("RF" = "steelblue", "SVM" = "firebrick")) +
   ylim(0, 1)
+```

@@ -1,18 +1,26 @@
-# R package requirements for this project
-# Install each with: install.packages("packagename")
-
+# Core R packages required for this project
 caret
 ranger
 e1071
-iml
-GGally
-corrplot
-car
 pROC
 ggplot2
 dplyr
 readr
+reshape2
 
-# Optional:
-# install.packages("knitr")
-# install.packages("rmarkdown")
+# Visualization
+GGally
+corrplot
+iml
+
+# Plotly interactive plots
+plotly
+htmlwidgets
+htmltools
+
+# Utilities
+car
+
+# Optional
+knitr
+rmarkdown

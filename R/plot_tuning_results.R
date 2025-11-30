@@ -1,4 +1,5 @@
 library(plotly)
+library(htmlwidgets)
 
 plot_parallel <- function(csv_path) {
   
@@ -15,6 +16,10 @@ plot_parallel <- function(csv_path) {
   )
 }
 
-plot_parallel("checkpoints/rf_results.csv")
-plot_parallel("checkpoints/svm_results.csv")
+p_rf  <- plot_parallel("checkpoints/rf_results.csv")
+p_svm <- plot_parallel("checkpoints/svm_results.csv")
+
+saveWidget(p_rf,  "checkpoints/RF_parameter_tuning.html",  selfcontained = FALSE)
+saveWidget(p_svm, "checkpoints/SVM_parameter_tuning.html", selfcontained = FALSE)
+
 
