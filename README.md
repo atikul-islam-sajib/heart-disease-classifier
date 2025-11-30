@@ -13,7 +13,7 @@ The project strictly follows all requirements defined in the course instructions
 
 ---
 
-## ** Project Workflow**
+## **Project Workflow**
 
 ```
 RAW DATA
@@ -48,7 +48,7 @@ INTERPRETABILITY (PDP, ICE, Feature Importance)
 
 ---
 
-## ** Directory Structure**
+## **Directory Structure**
 
 ```
 project/
@@ -80,7 +80,7 @@ project/
 
 ---
 
-# ** Scripts Overview**
+# **Scripts Overview**
 
 Below is a clear description of all R scripts and their role in the pipeline.
 
