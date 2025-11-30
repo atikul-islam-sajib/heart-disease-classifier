@@ -1,239 +1,65 @@
-# Heart Disease Prediction (Random Forest + SVM in R)
 
-## Project Overview
+# **Heart Disease Prediction using Random Forest and SVM (R Project)**
 
-This project predicts **Heart Disease (Yes/No)** using two machine-learning methods:
+This repository contains a complete, end-to-end **machine-learning pipeline in R** for predicting **Heart Disease (Yes/No)** using two supervised learning models:
 
 * **Random Forest (ML1)**
-* **Support Vector Machine (ML2)**
+* **Support Vector Machine – RBF Kernel (ML2)**
+
+The dataset used is the **Heart Failure Prediction Dataset** by *fedesoriano* (Kaggle).
+The objective is **binary classification** using 11 predictors.
+
+The project strictly follows all requirements defined in the course instructions, including proper data splitting, cross-validation, threshold tuning, diagnostics, and final model evaluation.
+
+---
+
+## ** Project Workflow**
 
 ```
-┌──────────────────────────┐
-│        RAW DATA          │
-│      heart.csv           │
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│       DATA SPLITTING     │
-│   60% Train / 20% Val /  │
-│          20% Test        │
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│       PREPROCESSING      │
-│  - Encode categorical    │
-│  - Scale numeric         │
-│  OUTPUT: *_scaled.csv    │
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│           EDA            │
-│  - Histograms            │
-│  - Barplots              │
-│  - Boxplots              │
-│  - Pie chart             │
-│  - Correlation matrix    │
-│  - Scatter plots         │
-│  OUTPUT: figured/        │
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│    HYPOTHESIS TESTING    │
-│ - T-test (numeric)       │
-│ - Chi-square (categorical)│
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│     MODEL TRAINING       │
-│  (Cross-Validation on    │
-│        Train Only)       │
-│ - Random Forest (ranger) │
-│ - SVM (RBF kernel)       │
-│  OUTPUT: tuned models    │
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│       FINAL MODELS       │
-│ (Train + Validation Set) │
-│ model_random_forest.rds  │
-│ model_svm.rds            │
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│    THRESHOLD TUNING      │
-│     (Youden’s J)         │
-│ threshold_rf.json        │
-│ threshold_svm.json       │
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│     FINAL EVALUATION     │
-│ - Test metrics           │
-│ - Confusion matrices     │
-│ - ROC curves             │
-│ OUTPUT: final_results/   │
-└─────────────┬────────────┘
-              ▼
-┌──────────────────────────┐
-│     COMPLETE PROJECT     │
-│         PIPELINE         │
-└──────────────────────────┘
+RAW DATA
+   │
+   ▼
+DATA SPLITTING (60/20/20)
+   │
+   ▼
+PREPROCESSING (Encoding + Scaling)
+   │
+   ▼
+EXPLORATORY DATA ANALYSIS (EDA)
+   │
+   ▼
+HYPOTHESIS TESTING (t-tests, χ²)
+   │
+   ▼
+MODEL TRAINING (Train-only cross-validation)
+   │
+   ▼
+FINAL MODELS (Train + Validation)
+   │
+   ▼
+THRESHOLD TUNING (Youden’s J)
+   │
+   ▼
+TEST-SET EVALUATION
+   │
+   ▼
+INTERPRETABILITY (PDP, ICE, Feature Importance)
 ```
 
-The dataset used is the **Heart Failure Prediction Dataset** from Kaggle (original author: *fedesoriano*).
-This is a **binary classification** problem with 11 predictors and 1 outcome variable.
-
-The work follows all requirements described in the course instructions.
-
 ---
 
-## **Course Requirements Satisfied**
-
-* Environment: **R**
-* Dataset properly split into:
-
-  * **60% Training**
-  * **20% Validation**
-  * **20% Test**
-* Hyperparameter tuning done using **5-fold cross-validation** on the **training set**
-* Final models trained on **train + validation**
-* **Test set used only once** at the very end for final comparison
-* **Two ML methods** selected:
-
-  * Random Forest (ML1)
-  * SVM (ML2)
-* Additional diagnostics:
-
-  * Overfitting check (train vs validation)
-  * Threshold tuning using **Youden’s J statistic**
-* Final results saved in JSON/CSV for clear reporting
-* Model interpretability performed (feature importance, PDP plots)
-
----
-
-## **Full Pipeline**
-
-### **1. `R/load_data.R`**
-
-Loads the raw CSV file and creates the **train/validation/test split** (60/20/20).
-Saves the partitions into `data/processed/`.
-
----
-
-### **2. `R/preprocessing.R`**
-
-* Converts categorical variables to factors
-* Converts target to factor with labels ("No", "Yes")
-* Checks missing values and class balance
-* Applies **standard scaling** to numeric features
-* Saves `train_scaled.csv`, `val_scaled.csv`, `test_scaled.csv`
-
----
-
-### **3. `R/descriptive_analysis.R`**
-
-Performs full EDA including:
-
-* Numeric distributions
-* Categorical frequency plots
-* Boxplots vs HeartDisease
-* Proportion plots
-* Correlation matrix
-* Saves all plots into `figures/`
-
----
-
-### **4. `R/model_random_forest.R`**
-
-* Tunes RF hyperparameters on **training-only** using 5-fold CV
-* Hyperparameters tuned:
-
-  * `mtry`
-  * `splitrule`
-  * `min.node.size`
-* Saves:
-
-  * Tuning results → `checkpoints/rf_results.csv`
-  * Tuned model → `checkpoints/rf_tuned.rds`
-  * Final RF model → `checkpoints/model_random_forest.rds`
-
----
-
-### **5. `R/model_svm.R`**
-
-* Tunes SVM (radial kernel) hyperparameters:
-
-  * `C`
-  * `sigma`
-* Uses 5-fold CV on **training-only**
-* Saves:
-
-  * Tuning results → `checkpoints/svm_results.csv`
-  * Tuned model → `checkpoints/svm_tuned.rds`
-  * Final SVM model → `checkpoints/model_svm.rds`
-
----
-
-### **6. `R/diagnostics.R`**
-
-* Computes metrics on **train vs validation** for RF and SVM:
-
-  * Accuracy
-  * Sensitivity
-  * Specificity
-  * Precision
-  * F1
-  * AUC
-* Generates a **Train vs Validation** accuracy comparison plot
-* Helps detect **overfitting**
-* Saves results in `artifacts/`
-
----
-
-### **7. `R/evaluate_models.R`**
-
-This script performs the **final evaluation following professor’s rules**:
-
-* Loads final RF and SVM (trained on train+val)
-* Tunes threshold using **Youden’s J**, using **training CV predictions only**
-* Applies tuned thresholds to **test set**
-* Computes and saves final metrics:
-
-  * `test_metrics.json`
-  * `test_metrics.csv`
-* Saves:
-
-  * RF/SVM confusion matrices
-  * RF vs SVM ROC curve plot
-* Stores everything in `artifacts/final_results/`
-
----
-
-### **8. `R/interpretability.R` : Yet to be completed**
-
-* Feature importance
-* Partial Dependence Plots (PDP)
-* ICE plots
-* Uses the **iml** package
-* Helps explain model behavior
-
----
-
-### **9. Notebooks -> Yet to be completed**
-
-* `notebooks/eda.Rmd` – Report-style exploratory analysis
-* `notebooks/modeling.Rmd` – Final modeling report with plots and interpretation
-
----
-
-## 📂 **Project Structure**
+## ** Directory Structure**
 
 ```
 project/
 │
 ├── data/
-│   ├── raw/heart.csv
+│   ├── raw/
+│   │   └── heart.csv
 │   └── processed/
+│       ├── train_scaled.csv
+│       ├── val_scaled.csv
+│       └── test_scaled.csv
 │
 ├── R/
 │   ├── load_data.R
@@ -245,9 +71,191 @@ project/
 │   ├── evaluate_models.R
 │   └── interpretability.R
 │
-├── checkpoints/
-├── artifacts/
+├── checkpoints/        # Tuned models, intermediate results
+├── artifacts/          # Metrics, evaluation results
 │   └── final_results/
-├── figures/
+├── figures/            # EDA and diagnostic plots
 └── README.md
 ```
+
+---
+
+# ** Scripts Overview**
+
+Below is a clear description of all R scripts and their role in the pipeline.
+
+---
+
+## **1 `load_data.R`**
+
+* Loads the raw `heart.csv` dataset.
+* Performs an **initial split:**
+
+  * 60% Training
+  * 20% Validation
+  * 20% Test
+* Saves partitioned datasets to `data/processed/`.
+
+---
+
+## **2 `preprocessing.R`**
+
+* Converts categorical variables into factors.
+* Converts target to factor: `"No"`, `"Yes"`.
+* Performs:
+
+  * Missing-value check
+  * Class imbalance check
+  * Standard scaling on numerical features
+* Saves:
+
+  * `train_scaled.csv`
+  * `val_scaled.csv`
+  * `test_scaled.csv`
+
+---
+
+## **3 `descriptive_analysis.R`**
+
+Full exploratory data analysis:
+
+* Histograms
+* Barplots
+* Boxplots
+* Proportion (pie) charts
+* Correlation matrix
+* Scatter plots
+* Summary statistics
+
+All generated figures are saved in:
+**`figures/`**
+
+---
+
+## **4 `model_random_forest.R`**
+
+Trains the **Random Forest (ranger)** classifier using:
+
+* **5-fold cross-validation on training set only**
+* Tuned hyperparameters:
+
+  * `mtry`
+  * `splitrule`
+  * `min.node.size`
+
+Outputs saved in:
+
+* `checkpoints/rf_results.csv` (CV results)
+* `checkpoints/rf_tuned.rds` (best tuned model)
+* `checkpoints/model_random_forest.rds` (final RF model)
+
+---
+
+## **5 `model_svm.R`**
+
+Trains the **SVM (Radial Kernel)** classifier with 5-fold CV.
+
+Hyperparameters tuned:
+
+* `C`
+* `sigma`
+
+Outputs saved in:
+
+* `checkpoints/svm_results.csv`
+* `checkpoints/svm_tuned.rds`
+* `checkpoints/model_svm.rds`
+
+---
+
+## **6  `diagnostics.R`**
+
+Performs overfitting/underfitting checks:
+
+* Compares **Train vs Validation** metrics:
+
+  * Accuracy
+  * Sensitivity
+  * Specificity
+  * Precision
+  * F1
+  * AUC
+* Generates plots and stores results in `artifacts/`.
+
+---
+
+## **7  `evaluate_models.R`**
+
+Final model evaluation following strict course requirements.
+
+* Loads models trained on **train + validation**
+* Computes **optimal threshold (Youden’s J)** using CV predictions
+* Applies tuned thresholds to **test set**
+* Generates:
+
+  * Confusion matrices
+  * ROC curves
+  * Final test metrics (JSON + CSV)
+
+Saved under:
+
+```
+artifacts/final_results/
+```
+
+---
+
+## **8 `interpretability.R`**
+
+(Work in progress)
+
+Will compute:
+
+* Feature importance
+* Partial Dependence Plots (PDP)
+* Individual Conditional Expectation (ICE)
+* Global surrogate explanations
+
+Uses the **iml** package.
+
+---
+
+# **Notebooks (To Be Completed)**
+
+* **`notebooks/eda.Rmd`** → Full exploratory data analysis report
+* **`notebooks/modeling.Rmd`** → Modeling workflow, diagnostics, and final evaluation
+
+---
+
+# **Models Used**
+
+| Model             | Package             | Purpose                      |
+| ----------------- | ------------------- | ---------------------------- |
+| **Random Forest** | `ranger`            | Baseline tree-based ensemble |
+| **SVM (RBF)**     | `kernlab` / `caret` | Non-linear margin classifier |
+
+Both models undergo:
+
+* 5-fold CV
+* Hyperparameter tuning
+* Threshold tuning
+* Final evaluation on untouched test data
+
+---
+
+# **Results Summary (High-Level)**
+
+* Proper 60/20/20 data splitting
+* Strict separation of train/validation/test
+* Final models trained only after hyperparameter tuning
+* Threshold tuned using Youden’s J (not default 0.5)
+* Metrics saved in standardized formats (CSV/JSON)
+* Full EDA and diagnostics included
+
+---
+
+# **Citation**
+
+Dataset source:
+**Heart Failure Prediction Dataset** by *fedesoriano* (Kaggle)
+
