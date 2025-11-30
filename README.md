@@ -7,6 +7,79 @@ This project predicts **Heart Disease (Yes/No)** using two machine-learning meth
 * **Random Forest (ML1)**
 * **Support Vector Machine (ML2)**
 
+```
+┌──────────────────────────┐
+│        RAW DATA          │
+│      heart.csv           │
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│       DATA SPLITTING     │
+│   60% Train / 20% Val /  │
+│          20% Test        │
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│       PREPROCESSING      │
+│  - Encode categorical    │
+│  - Scale numeric         │
+│  OUTPUT: *_scaled.csv    │
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│           EDA            │
+│  - Histograms            │
+│  - Barplots              │
+│  - Boxplots              │
+│  - Pie chart             │
+│  - Correlation matrix    │
+│  - Scatter plots         │
+│  OUTPUT: figured/        │
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│    HYPOTHESIS TESTING    │
+│ - T-test (numeric)       │
+│ - Chi-square (categorical)│
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│     MODEL TRAINING       │
+│  (Cross-Validation on    │
+│        Train Only)       │
+│ - Random Forest (ranger) │
+│ - SVM (RBF kernel)       │
+│  OUTPUT: tuned models    │
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│       FINAL MODELS       │
+│ (Train + Validation Set) │
+│ model_random_forest.rds  │
+│ model_svm.rds            │
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│    THRESHOLD TUNING      │
+│     (Youden’s J)         │
+│ threshold_rf.json        │
+│ threshold_svm.json       │
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│     FINAL EVALUATION     │
+│ - Test metrics           │
+│ - Confusion matrices     │
+│ - ROC curves             │
+│ OUTPUT: final_results/   │
+└─────────────┬────────────┘
+              ▼
+┌──────────────────────────┐
+│     COMPLETE PROJECT     │
+│         PIPELINE         │
+└──────────────────────────┘
+```
+
 The dataset used is the **Heart Failure Prediction Dataset** from Kaggle (original author: *fedesoriano*).
 This is a **binary classification** problem with 11 predictors and 1 outcome variable.
 
