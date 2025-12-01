@@ -1,0 +1,1305 @@
+\documentclass[a4paper,12pt]{article}
+
+% ----- PACKAGES -----
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{subcaption}
+\usepackage{geometry}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+% Page layout
+\geometry{margin=1in}
+\onehalfspacing
+
+% Title/section spacing
+\titlespacing*{\section}{0pt}{1.5ex}{1ex}
+\titlespacing*{\subsection}{0pt}{1ex}{0.8ex}
+\titlespacing*{\subsubsection}{0pt}{0.8ex}{0.5ex}
+
+% Reduce figure spacing
+\setlength{\intextsep}{6pt}
+\setlength{\textfloatsep}{10pt}
+\setlength{\floatsep}{8pt}
+
+% Reduce equation spacing
+\setlength{\abovedisplayskip}{8pt}
+\setlength{\belowdisplayskip}{8pt}
+
+\begin{document}
+
+\pagenumbering{roman}
+\thispagestyle{empty}
+
+% ================= TITLE PAGE =================
+\begin{titlepage}
+\centering
+
+\includegraphics[width=0.45\textwidth]{BHT/bht.png}\\[1cm]
+
+{\Large \textbf{Prediction of Heart Disease Using Machine Learning Models}}\\[1cm]
+
+{\large \textbf{Submitted by:}}\\[0.3cm]
+\begin{tabular}{c}
+Zafrin Sultana \\
+Sakib Hasan \\
+Atikul Islam Sajib \\
+Mohammad Mahmudul Hasan \\
+\end{tabular}
+
+\vspace{1cm}
+
+{\large \textbf{Supervisor:}}\\[0.3cm]
+Prof.\ Dr.\ Steffen Wagner \\
+Professor of Applied Statistics \\
+Berlin University of Applied Sciences (BHT) \\
+
+\vfill
+
+\end{titlepage}
+
+\clearpage
+\pagenumbering{arabic}
+
+
+
+\begin{abstract}
+Heart disease remains one of the leading causes of mortality worldwide, highlighting the 
+need for accurate and interpretable prediction systems. This project investigates the 
+use of supervised machine learning methods to classify the presence of heart disease 
+using demographic and clinical features from the Kaggle \textit{Heart Failure Prediction} 
+dataset (918 observations, 12 variables). The analysis follows a structured workflow 
+including exploratory data analysis, data preprocessing, feature standardisation, and 
+systematic hyperparameter optimisation.
+
+Two algorithms—\textbf{Random Forest (RF)} and \textbf{Support Vector Machine (SVM)} with 
+an RBF kernel—were tuned via grid search and cross-validation. Model performance was 
+evaluated using accuracy, sensitivity, specificity, F1-score, and the area under the ROC 
+curve (AUC). The SVM achieved the strongest test performance (Accuracy = 0.891, AUC = 0.944), 
+while the RF model performed competitively across most metrics.
+
+Model interpretability was enhanced using permutation-based feature importance, which 
+identified ECG- and exercise-related predictors such as \texttt{ST\_Slope}, 
+\texttt{ChestPainType}, and \texttt{Oldpeak} as the most influential factors.
+
+All code, analysis scripts, and generated results are openly available at:\\
+\textbf{\url{https://github.com/atikul-islam-sajib/heart-disease-classifier}}.
+\end{abstract}
+
+
+
+% ===================== TABLE OF CONTENTS =====================
+\tableofcontents
+\listoffigures
+\listoftables
+% =====================================================================
+\section{Introduction}
+% =====================================================================
+
+Cardiovascular disease is the leading cause of mortality worldwide, making early and
+accurate risk prediction an essential component of modern clinical decision support.
+Machine learning (ML) techniques offer powerful tools for analysing complex patient
+profiles and identifying patterns not easily captured by traditional statistical methods.
+This study develops and compares ML models for predicting whether a patient has heart
+disease based on routinely collected demographic and clinical variables.
+
+The target variable, \texttt{HeartDisease}, indicates disease presence (\texttt{Yes}) or
+absence (\texttt{No}). The predictors include demographic attributes (e.g., \texttt{Age},
+\texttt{Sex}) and clinically relevant measurements such as \texttt{ChestPainType},
+\texttt{RestingBP}, \texttt{Cholesterol}, \texttt{MaxHR}, \texttt{ExerciseAngina},
+\texttt{Oldpeak}, and \texttt{ST\_Slope}, which are commonly used in cardiovascular
+assessment and stress-test diagnostics.
+
+The data originate from the \emph{Heart Failure Prediction} dataset on Kaggle
+(fedesoriano),\footnote{Soriano, F. (2020). \textit{Heart Failure Prediction Dataset}.
+Kaggle. \url{https://www.kaggle.com/datasets/fedesoriano/heart-failure-prediction}}
+containing 918 observations and 12 features with no missing values. It integrates
+clinical, ECG, and exercise-related information, making it a widely used benchmark for
+classification tasks.
+
+The dataset was split into training (60\%), validation (20\%), and test (20\%) subsets.
+Two supervised algorithms—\textbf{Random Forest (RF)} and \textbf{Support Vector Machine
+(SVM)} with an RBF kernel—were trained and optimised through cross-validation and grid
+search. A detailed exploratory data analysis (EDA) was performed beforehand to understand
+distributional patterns and relationships among predictors.
+
+The key objectives of this project are:
+\begin{itemize}
+    \item to train and optimise ML models using robust validation procedures,
+    \item to evaluate performance using accuracy, sensitivity, specificity, F1-score, and AUC,
+    \item to compare the generalisation ability of RF and SVM on unseen test data,
+    \item and to identify the most influential predictors using \textbf{explainable AI (XAI)}
+          techniques.
+\end{itemize}
+
+Overall, this project aims to develop accurate and interpretable ML models for heart
+disease prediction and to provide insight into the clinical factors most strongly
+associated with cardiovascular risk.
+
+
+
+% =====================================================================
+\section{Descriptive Analysis of the Data}
+% =====================================================================
+
+This section provides a descriptive and statistical overview of the variables in the
+Heart Failure Prediction dataset. We examine their distributions, relationships, and
+differences between patients with and without heart disease. These insights help guide
+the modelling process and highlight features likely to hold predictive value.
+
+
+
+% =====================================================================
+\subsection{Structure of the Training Data}
+% =====================================================================
+
+The training set contains 550 observations and 12 variables, comprising six numeric and
+five categorical predictors. The target variable, \texttt{HeartDisease}, includes 
+248 \texttt{No} cases and 302 \texttt{Yes} cases, indicating a reasonably balanced 
+class distribution. No missing values were present in the dataset.
+
+The numeric variables are: \texttt{Age}, \texttt{RestingBP}, \texttt{Cholesterol},
+\texttt{FastingBS}, \texttt{MaxHR}, and \texttt{Oldpeak}. The categorical variables are:
+\texttt{Sex}, \texttt{ChestPainType}, \texttt{RestingECG}, \texttt{ExerciseAngina}, and 
+\texttt{ST\_Slope}. These variables include demographic information, clinical measurements, 
+and ECG- or exercise-related indicators that are commonly used in cardiovascular assessment.
+
+All numeric variables were standardised using the $z$-score transformation:
+\[
+z = \frac{x - \mu}{\sigma},
+\]
+where $\mu$ and $\sigma$ denote the mean and standard deviation of each feature. 
+Standardisation ensures that predictors measured on different scales contribute 
+equally during model training. This preprocessing step is particularly important for 
+distance-based and kernel-based algorithms, such as SVM. It also facilitates 
+interpretability during exploratory analysis by placing all numeric features on a 
+comparable scale.
+
+
+
+% =====================================================================
+\subsection{Distributions of Numeric Variables}
+
+\begin{figure}[H]
+    \centering
+    \captionsetup{aboveskip=4pt, belowskip=4pt}
+
+    \includegraphics[width=0.31\textwidth]{figured/Age_hist.png}
+    \includegraphics[width=0.31\textwidth]{figured/RestingBP_hist.png}
+    \includegraphics[width=0.31\textwidth]{figured/Cholesterol_hist.png}\\[4pt]
+
+    \includegraphics[width=0.31\textwidth]{figured/FastingBS_hist.png}
+    \includegraphics[width=0.31\textwidth]{figured/MaxHR_hist.png}
+    \includegraphics[width=0.31\textwidth]{figured/Oldpeak_hist.png}
+
+    \caption{Histograms of numeric features in the training data.}
+    \label{fig:numeric-hists}
+\end{figure}
+
+The numeric variables show different distribution shapes. \texttt{Age} and
+\texttt{MaxHR} follow smooth, unimodal distributions. \texttt{RestingBP},
+\texttt{Cholesterol}, and \texttt{Oldpeak} display clear right-skewness, including some
+high-value outliers. \texttt{FastingBS} behaves as a binary variable with two peaks.
+These differences in skewness and scale support the use of standardisation before model
+training.
+
+
+% =====================================================================
+\subsection{Class Balance}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.40\textwidth]{figured/heartdisease_pie_chart.png}
+    \caption{Proportion of HeartDisease classes in the training data.}
+    \label{fig:pie-class}
+\end{figure}
+
+The two outcome classes are well balanced, reducing the risk of biased model learning 
+and eliminating the need for class imbalance correction techniques. This balance also 
+means that both classes are equally represented in the plots, making visual patterns 
+and group comparisons easier to interpret. It further ensures that the models do not 
+favour one class simply due to its frequency.
+
+
+% =====================================================================
+\subsection{Distributions of Categorical Variables}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.32\textwidth]{figured/Sex_bar.png}
+    \includegraphics[width=0.32\textwidth]{figured/ChestPainType_bar.png}
+    \includegraphics[width=0.32\textwidth]{figured/RestingECG_bar.png}\\[4pt]
+    \includegraphics[width=0.32\textwidth]{figured/ExerciseAngina_bar.png}
+    \includegraphics[width=0.32\textwidth]{figured/ST_Slope_bar.png}
+    \caption{Bar plots of categorical predictors.}
+    \label{fig:cat-bars}
+\end{figure}
+
+Most patients are male, have asymptomatic chest pain (\texttt{ASY}), and show a normal 
+resting ECG. A large majority present a flat \texttt{ST\_Slope}, a pattern consistent 
+with typical clinical heart disease datasets.
+
+% =====================================================================
+\subsection{Numeric Variables vs.\ Heart Disease}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.32\textwidth]{figured/Age_boxplot.png}
+    \includegraphics[width=0.32\textwidth]{figured/RestingBP_boxplot.png}
+    \includegraphics[width=0.32\textwidth]{figured/Cholesterol_boxplot.png}\\[4pt]
+    \includegraphics[width=0.32\textwidth]{figured/FastingBS_boxplot.png}
+    \includegraphics[width=0.32\textwidth]{figured/MaxHR_boxplot.png}
+    \includegraphics[width=0.32\textwidth]{figured/Oldpeak_boxplot.png}
+    \caption{Numeric predictors separated by heart disease outcome.}
+    \label{fig:numeric-box}
+\end{figure}
+
+Patients with heart disease are generally older, show lower \texttt{MaxHR}, and exhibit 
+substantially higher \texttt{Oldpeak}. \texttt{FastingBS} equals 1 more often among the 
+disease group. Differences in \texttt{RestingBP} and \texttt{Cholesterol} are weaker but 
+still visible.
+
+% =====================================================================
+\subsection{Categorical Variables vs.\ Heart Disease}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.32\textwidth]{figured/ChestPainType_prop.png}
+    \includegraphics[width=0.32\textwidth]{figured/ExerciseAngina_prop.png}
+    \includegraphics[width=0.32\textwidth]{figured/Sex_prop.png}\\[4pt]
+    \includegraphics[width=0.32\textwidth]{figured/RestingECG_prop.png}
+    \includegraphics[width=0.32\textwidth]{figured/ST_Slope_prop.png}
+    \caption{Proportions of heart disease within each category.}
+    \label{fig:cat-prop}
+\end{figure}
+
+\texttt{ChestPainType} shows the strongest categorical separation. Exercise-induced 
+angina and downward or flat ST slopes are also strongly associated with heart disease, 
+whereas \texttt{RestingECG} shows little differentiation.
+
+% =====================================================================
+\subsection{Correlation Between Numeric Predictors}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figured/correlation_matrix.png}
+    \caption{Correlation matrix of numeric predictors.}
+    \label{fig:corr}
+\end{figure}
+
+Overall, the correlation matrix shows that the numeric predictors are mostly weakly related to one another. The only noticeable pattern is the expected negative relationship between Age and MaxHR, reflecting that older patients usually reach lower maximum heart rates. There is also a mild positive relationship between Age and Oldpeak, indicating slightly higher exercise-induced ST depression in older individuals.
+
+All other variable pairs show minimal or no linear association, meaning that each numeric feature contributes largely independent information to the modelling process.
+
+% =====================================================================
+\subsection{Scatter Plots of Numeric Predictors vs.\ Age}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.32\textwidth]{figured/age_vs_RestingBP_scatter.png}
+    \includegraphics[width=0.32\textwidth]{figured/age_vs_Cholesterol_scatter.png}
+    \includegraphics[width=0.32\textwidth]{figured/age_vs_MaxHR_scatter.png}\\[4pt]
+    \includegraphics[width=0.32\textwidth]{figured/age_vs_Oldpeak_scatter.png}
+    \caption{Scatter plots of Age versus key numeric predictors.}
+    \label{fig:age-scatters}
+\end{figure}
+
+A strong negative trend is observed between \texttt{Age} and \texttt{MaxHR}, while older 
+patients tend to show higher \texttt{Oldpeak}. Other variables show no meaningful 
+age-related structure. These patterns agree with clinical expectations: maximum heart 
+rate naturally declines with age, and exercise-induced ST depression (\texttt{Oldpeak}) 
+often becomes more pronounced in older individuals. Overall, the plots suggest that age 
+plays an important role mainly through its relationship with exercise-related measures, 
+rather than through resting clinical variables.
+.
+
+% =====================================================================
+\subsection{Smoothed Trend Between Age and MaxHR}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\textwidth]{figured/age_vs_maxhr_smooth.png}
+    \caption{LOESS smoothing of Age vs.\ MaxHR.}
+    \label{fig:loess-age-maxhr}
+\end{figure}
+
+The LOESS curve confirms a smooth decline in \texttt{MaxHR} with age. Across all ages, 
+patients with heart disease tend to have consistently lower \texttt{MaxHR}. This pattern 
+suggests that reduced heart performance during exercise is strongly linked to disease 
+presence. The smooth trend also indicates that the relationship is stable and not driven 
+by a few extreme values. Overall, the plot highlights \texttt{MaxHR} as an important 
+indicator of cardiovascular health.
+
+
+% =====================================================================
+\subsection{Scatter Plot of MaxHR vs.\ Oldpeak by Sex}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.70\textwidth]{figured/maxhr_oldpeak_facet_sex.png}
+    \caption{Scatter plot of MaxHR vs.\ Oldpeak, faceted by Sex.}
+    \label{fig:facet-sex}
+\end{figure}
+
+Male patients exhibit a wider spread in \texttt{MaxHR} and tend to show higher 
+\texttt{Oldpeak} values. A dense cluster of low \texttt{MaxHR} and high \texttt{Oldpeak} 
+is strongly associated with heart disease, particularly among men.
+
+% =====================================================================
+\subsection{Statistical Hypothesis Testing of Feature Differences}
+% =====================================================================
+
+To validate the visual patterns, statistical tests were used to assess whether each 
+feature differs between patients with and without heart disease. Numeric variables were 
+tested using Welch’s two-sample $t$-test, and categorical variables using the chi-square 
+test of independence. All tests used a 5\% significance level ($\alpha = 0.05$) with 
+95\% confidence intervals.
+
+\subsubsection*{Numeric Variables}
+
+All numeric features differ significantly between groups:
+
+\begin{itemize}
+    \item \textbf{Age}: Higher for disease patients ($p < 10^{-11}$).
+    \item \textbf{RestingBP}: Slightly higher in the disease group ($p = 0.002$).
+    \item \textbf{Cholesterol}: Higher for non-disease patients ($p < 10^{-6}$).
+    \item \textbf{FastingBS}: Higher in the disease group ($p < 10^{-8}$).
+    \item \textbf{MaxHR}: Markedly lower for disease patients ($p \approx 0$).
+    \item \textbf{Oldpeak}: Markedly higher for disease patients ($p \approx 0$).
+\end{itemize}
+
+\subsubsection*{Categorical Variables}
+
+Most categorical features show strong associations with heart disease:
+
+\begin{itemize}
+    \item \textbf{Sex}: Significant association ($p < 10^{-14}$).
+    \item \textbf{ChestPainType}: Very strong relationship ($p \approx 0$).
+    \item \textbf{ExerciseAngina}: Highly significant ($p \approx 0$).
+    \item \textbf{ST\_Slope}: Strongest association among categorical variables ($p \approx 0$).
+    \item \textbf{RestingECG}: Not significant ($p = 0.051$).
+\end{itemize}
+
+Both the descriptive visualisations and the statistical tests highlight clear and 
+clinically meaningful differences between patients with and without heart disease. 
+Exercise-related variables—\textbf{MaxHR}, \textbf{Oldpeak}, \textbf{ST\_Slope}, and 
+\textbf{ExerciseAngina}—show the strongest separation and are therefore expected to be 
+important predictors in the subsequent modelling steps. In contrast, 
+\textbf{RestingECG} shows no significant difference between groups. These findings 
+provide a strong empirical foundation for the machine learning models developed in the 
+following sections.
+
+
+% =====================================================================
+\section{Mathematical Overview of Machine Learning Methods}
+% =====================================================================
+
+This section provides a formal mathematical description of the two supervised
+learning methods used in this study: Random Forests and Support Vector Machines (SVMs).
+The presentation emphasizes the optimisation principles, underlying assumptions,
+and decision functions that govern both models.
+
+% =====================================================================
+\subsection{Random Forests}
+% =====================================================================
+
+Random Forests (RF), introduced by Breiman~\cite{breiman}, are an ensemble
+method consisting of a large number of decision trees trained on bootstrap samples
+of the data. Their strength lies in variance reduction through aggregation and the
+ability to capture nonlinear feature interactions.
+
+% ------------------ TREE SPLITTING ------------------
+\subsubsection*{Node impurity and optimal splitting}
+
+Let the dataset be
+\[
+\mathcal{D} = \{(x_i, y_i)\}_{i=1}^n,
+\qquad x_i \in \mathbb{R}^p,\; y_i \in \{0,1\}.
+\]
+
+At each node of a decision tree, the algorithm searches over a subset of features
+(\texttt{mtry}) and possible thresholds to find the split that minimises impurity.
+For classification, a common impurity measure is the \textbf{Gini impurity}:
+
+\[
+G(t) = \sum_{k=0}^1 \hat{p}_{k,t}(1 - \hat{p}_{k,t}),
+\qquad
+\hat{p}_{k,t} = \frac{1}{N_t} \sum_{i \in t}\mathbf{1}(y_i = k).
+\]
+
+An alternative and scientifically equivalent impurity measure is the
+\textbf{entropy} (used in information gain–based tree algorithms):
+
+\[
+H(t) = - \sum_{k=0}^1 \hat{p}_{k,t} \log \hat{p}_{k,t}.
+\]
+
+Both Gini and entropy quantify node impurity and typically lead to very similar
+splits, with Gini being slightly faster to compute.
+
+The optimal split \((j^\ast, s^\ast)\) solves
+
+\[
+(j^\ast, s^\ast)
+= \arg\min_{j, s}
+\left[
+\frac{N_{\text{left}}}{N_t} I(R_{\text{left}}(j,s))
++
+\frac{N_{\text{right}}}{N_t} I(R_{\text{right}}(j,s))
+\right],
+\]
+
+where \(I(\cdot)\) denotes the chosen impurity measure (Gini or entropy).
+
+% ------------------ IMAGE: RANDOM FOREST DIAGRAM ------------------
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\textwidth]{figured/rf_forest.png}
+\caption{Illustration of a Random Forest: many decision trees trained on
+bootstrap samples, with predictions aggregated by averaging.}
+\label{fig:rf_forest}
+\end{figure}
+
+% ------------------ BAGGING AND RANDOMNESS ------------------
+\subsubsection*{Bootstrap aggregation (bagging)}
+
+Each tree is trained on a bootstrap sample of size \(n\):
+\[
+\mathcal{D}_b \sim \text{SampleWithReplacement}(\mathcal{D}, n).
+\]
+
+Random feature selection additionally decorrelates trees, improving ensemble stability.
+
+% ------------------ ENSEMBLE PREDICTION ------------------
+\subsubsection*{Ensemble decision rule}
+
+Let \(T_b(x)\) denote the predicted probability from tree \(b\).  
+For \(B\) trees, the RF estimator is
+
+\[
+\hat{p}_{RF}(y=1 \mid x)
+=
+\frac{1}{B} \sum_{b=1}^B T_b(x).
+\]
+
+The class prediction is
+
+\[
+\hat{y}(x) = 
+\begin{cases}
+1 & \text{if } \hat{p}_{RF}(x) > \tau,\\
+0 & \text{otherwise},
+\end{cases}
+\]
+where \(\tau\) is a probability threshold (tuned in this project using Youden’s index).
+
+Random Forests excel in capturing nonlinear structure and interactions while
+maintaining robustness against noise and overfitting.
+
+% =====================================================================
+\subsection{Support Vector Machines}
+% =====================================================================
+
+Support Vector Machines (SVMs)~\cite{svm} construct a decision boundary that
+maximizes the margin between two classes. Only a subset of the training points,
+the \emph{support vectors}, determine the optimal boundary.
+
+% ---------------- HARD-MARGIN SVM ----------------
+\subsubsection*{Hard-margin optimisation}
+
+For linearly separable data, the SVM solves
+
+\[
+\min_{w,b} \; \frac{1}{2}\|w\|^2
+\]
+
+subject to
+
+\[
+y_i(w^\top x_i + b) \ge 1.
+\]
+
+The margin equals \(2/\|w\|\), so minimizing the norm of \(w\) maximizes the
+distance between the supporting hyperplanes, yielding the maximal margin classifier.
+
+% ---------------- SOFT-MARGIN SVM ----------------
+\subsubsection*{Soft-margin formulation}
+
+Real-world data are rarely perfectly separable. Introducing slack variables
+\(\xi_i \ge 0\) allows controlled margin violations:
+
+\[
+\min_{w,b,\xi}
+\quad
+\frac{1}{2}\|w\|^2 + C\sum_{i=1}^n \xi_i
+\]
+
+subject to
+
+\[
+y_i(w^\top x_i + b) \ge 1 - \xi_i,
+\qquad
+\xi_i \ge 0.
+\]
+
+The parameter \(C > 0\) regulates the trade-off between maximizing the margin and
+penalizing violations.
+
+\paragraph{Effect of the margin parameter \(C\) and slack variables \(\xi_i\).}
+
+The slack variables quantify the degree of constraint violation:  
+\[
+\xi_i = 
+\begin{cases}
+0 & \text{correctly classified and outside the margin},\\[4pt]
+0 < \xi_i < 1 & \text{inside the margin but correctly classified},\\[4pt]
+\xi_i > 1 & \text{misclassified}.
+\end{cases}
+\]
+
+A large value of \(C\) imposes a high penalty on non-zero \(\xi_i\), encouraging a
+narrow margin and a solution close to the hard-margin classifier. This prioritizes
+minimizing training errors but may overfit in noisy scenarios.  
+In contrast, a small \(C\) tolerates larger slack values, producing a wider margin
+that can improve generalization by reducing sensitivity to outliers and label
+noise. This interpretation aligns with the regularization view of SVMs.
+
+% ---------------- IMAGE: MARGIN DIAGRAM ------------------
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\textwidth]{figured/svm.png}
+\caption{Geometric interpretation of the SVM classifier showing the maximal
+margin hyperplane and support vectors.}
+\label{fig:svm_margin}
+\end{figure}
+
+% ---------------- NONLINEAR SVM ----------------
+\subsubsection*{Kernel-based nonlinear decision functions}
+
+Although the SVM is inherently a linear classifier, nonlinear decision boundaries
+can be constructed using kernel functions \(K(x,z)\), which implicitly map the
+data to a high-dimensional feature space.
+
+A widely used choice is the radial basis function (RBF) kernel:
+
+\[
+K(x,z) = \exp(-\gamma \|x - z\|^2),
+\]
+
+where \(\gamma\) controls the width of the Gaussian basis and thus the smoothness
+of the decision boundary.
+
+In the dual representation, the SVM decision function is
+
+\[
+f(x) =
+\sum_{i=1}^n \alpha_i y_i K(x_i, x) + b,
+\]
+
+where \(\alpha_i\) are Lagrange multipliers. Only support vectors satisfy
+\(\alpha_i > 0\), so inference depends on a subset of training points. The kernel
+mapping enables SVMs to model complex, curved boundaries in the original feature
+space while retaining convex optimisation in the dual problem.
+
+
+
+% =====================================================================
+\section{Model Training, Tuning, and Diagnostics}
+% =====================================================================
+
+Before model fitting, all numeric predictors were standardised to have mean 0 and unit
+variance, while categorical variables were encoded as factors. The dataset was split into
+training (60\%), validation (20\%), and test (20\%) sets. All tuning procedures were
+performed on the training set only, and the validation set was used for intermediate
+model comparison prior to final testing.
+
+Both Random Forest and SVM models were trained using the \texttt{caret} package, which
+provides a unified interface for model training, resampling, and hyperparameter tuning.
+To obtain robust performance estimates, cross-validation was used during tuning:
+5-fold cross-validation for Random Forest and 5-fold cross-validation for SVM. This
+reduces variance in performance estimates and helps prevent overfitting to any particular
+partition of the data.
+
+Hyperparameter tuning was carried out using an exhaustive grid search. For each model,
+a predefined grid of hyperparameter combinations was evaluated, and each configuration
+was trained and assessed using cross-validation. Performance was measured using the area
+under the ROC curve (AUC), which provides a threshold-independent measure of
+classification quality and is particularly suitable for balanced binary outcomes such as
+this dataset.
+
+The best model configuration was selected based on the highest cross-validated AUC.
+Secondary metrics such as accuracy, sensitivity, and specificity were also monitored to
+ensure models performed well across different evaluation criteria. Once tuning was
+complete, the optimal hyperparameters were used to fit a final model on the combined
+training and validation data. This final model was then evaluated on the held-out test set,
+ensuring an unbiased estimate of generalisation performance.
+
+Diagnostic plots—such as confusion matrices, ROC curves, and training vs.\ validation
+accuracy comparisons—were used to assess whether the final models exhibited signs of
+overfitting or underfitting. Both models demonstrated consistent performance between
+training and validation sets, indicating well-controlled variance and good
+generalisation.
+
+% ---------------------------------------------------------------------
+\subsection{Hyperparameter search space}
+% ---------------------------------------------------------------------
+
+Table~\ref{tab:hyper-grid} summarises the complete hyperparameter grids used during 
+the tuning of the Random Forest and SVM (RBF kernel) models. The Random Forest 
+models were tuned using 5-fold cross-validation, while the SVM models were tuned 
+using 5-fold cross-validation.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{l l p{8cm}}
+\toprule
+\textbf{Model} & \textbf{Hyperparameter} & \textbf{Values Explored} \\
+\midrule
+
+\multirow{3}{*}{Random Forest} 
+& mtry & \{1, 2, 3, 4, 5, 6, 7, 8, 9, 10\} \\
+& min.node.size & \{1, 2, 3, 4, 5, 10, 15, 20\} \\
+& splitrule & \(\{ \texttt{gini, extratrees, hellinger} \}\) \\
+\midrule
+
+\multirow{2}{*}{SVM (RBF)} 
+& Cost (C) & \{1, 5, 10, 20, 50, 100, 200, 500, 1000\} \\
+& sigma ($\sigma$) & \{0.0001, 0.001, 0.005, 0.01\} \\
+\bottomrule
+\end{tabular}
+\caption{Hyperparameter search spaces used for grid search in Random Forest and SVM models.}
+\label{tab:hyper-grid}
+\end{table}
+
+The Random Forest grid consisted of 
+\[
+10 \times 8 \times 3 = 240
+\]
+hyperparameter combinations, resulting from all possible choices of \texttt{mtry}, 
+\texttt{min.node.size}, and \texttt{splitrule}. The SVM grid included
+\[
+9 \times 4 = 36
+\]
+combinations of cost values and kernel width parameters. Each combination was 
+evaluated using the respective cross-validation scheme, and the configuration with 
+the highest ROC value was selected for final model training.
+
+
+% ---------------------------------------------------------------------
+\subsection{Hyperparameter Tuning Results}
+% ---------------------------------------------------------------------
+
+The full hyperparameter grids for both Random Forest (RF) and Support Vector 
+Machine (SVM) models contain a large number of evaluated configurations. To 
+illustrate their structure, representative sample rows from the grid search are 
+presented below. These samples show how performance metrics such as ROC and 
+Accuracy vary across different combinations of tuning parameters. The ellipsis 
+(\dots) indicates that additional configurations were evaluated during 
+cross-validation.
+
+% ================================
+% Random Forest tuning table
+% ================================
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{c c c c}
+\toprule
+\textbf{mtry} & \textbf{min.node.size} & \textbf{ROC} & \textbf{Accuracy} \\
+\midrule
+1  & 5  & 0.9208 & 0.7890 \\
+2  & 5  & 0.9204 & 0.7985 \\
+3  & 10 & 0.9198 & 0.7937 \\
+5  & 5  & 0.9185 & 0.7850 \\
+8  & 15 & 0.9174 & 0.7810 \\
+\vdots & \vdots & \vdots & \vdots \\
+\bottomrule
+\end{tabular}
+\caption{Sample rows from the Random Forest hyperparameter tuning grid.}
+\label{tab:rf_sample}
+\end{table}
+
+% ================================
+% SVM tuning table
+% ================================
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{c c c c}
+\toprule
+\textbf{Cost (C)} & \textbf{Sigma} & \textbf{ROC} & \textbf{Accuracy} \\
+\midrule
+1   & 0.0001 & 0.9162 & 0.8020 \\
+5   & 0.0001 & 0.9167 & 0.8267 \\
+50  & 0.0001 & 0.9223 & 0.8147 \\
+10  & 0.001  & 0.9208 & 0.8093 \\
+20  & 0.001  & 0.9214 & 0.8120 \\
+\vdots & \vdots & \vdots & \vdots \\
+\bottomrule
+\end{tabular}
+\caption{Sample rows from the SVM (RBF kernel) hyperparameter tuning grid.}
+\label{tab:svm_sample}
+\end{table}
+
+These tables demonstrate the variability in model performance across the grid 
+search and highlight the types of parameter combinations that yield higher ROC 
+scores. However, they provide only a partial view of the complete tuning 
+landscape. To better understand how performance behaves across all evaluated 
+hyperparameter combinations, a visualisation of the full grid search is presented 
+next.
+
+% ---------------------------------------------------------------------
+\subsection{Hyperparameter Tuning Visualisation}
+% ---------------------------------------------------------------------
+
+While the sample rows illustrate individual tuning outcomes, they do not fully reflect 
+the structure of the entire search space. Figure~\ref{fig:tuning-plots} therefore 
+provides heatmap visualisations of the full tuning surfaces for both models.
+
+The Random Forest heatmap (left) shows that ROC performance is stable across a wide 
+range of \texttt{mtry} and \texttt{min.node.size} values, indicating that the model 
+is generally robust to moderate changes in its hyperparameters. By contrast, the SVM 
+heatmap (right) reveals a more concentrated high-performance region, with the best 
+results observed for moderate \(C\) values and smaller \(\sigma\), reflecting the 
+greater sensitivity of SVMs to these parameters.
+
+Overall, the heatmaps confirm that the selected hyperparameters lie within strong, 
+well-performing regions of the search space for both models.
+
+
+\begin{figure}[H]
+    \centering
+
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{checkpoints/Rplot-RF.png}
+        \caption{Random Forest tuning heatmap}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{checkpoints/Rplot-svm.png}
+        \caption{SVM (RBF kernel) tuning heatmap}
+    \end{subfigure}
+
+    \caption{Complete hyperparameter tuning visualisation for Random Forest and 
+    SVM models. Colours represent cross-validated ROC performance across all 
+    evaluated hyperparameter combinations.}
+    \label{fig:tuning-plots}
+\end{figure}
+
+
+% ---------------------------------------------------------------------
+\subsection{Training–Validation Diagnostics}
+% ---------------------------------------------------------------------
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{artifacts/diagnostics_accuracy_train_vs_val.png}
+\caption{Training vs.\ validation accuracy for RF and SVM.}
+\label{fig:train-val-accuracy}
+\end{figure}
+
+Figure~\ref{fig:train-val-accuracy} provides a visual comparison of training and
+validation accuracy for both the Random Forest and SVM models. In both cases, the
+training and validation bars lie very close to each other, indicating that neither
+model exhibits a large generalisation gap. This suggests that overfitting is
+limited and that both models maintain stable predictive behaviour on unseen data.
+The slightly higher accuracy of the SVM is already visible in the plot, although
+the difference is modest.
+
+To provide a more detailed quantitative view, Table~\ref{tab:train-val-metrics}
+summarises the main performance metrics—Accuracy, Sensitivity, Specificity,
+Precision, F1, and AUC—on both the training and validation sets, derived from the
+CSV summary.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{l c c c c c c}
+\toprule
+\textbf{Dataset} & \textbf{Accuracy} & \textbf{Sensitivity} & \textbf{Specificity} &
+\textbf{Precision} & \textbf{F1} & \textbf{AUC} \\
+\midrule
+Train\_RF  & 0.8727 & 0.9272 & 0.8065 & 0.8537 & 0.8889 & 0.9332 \\
+Val\_RF    & 0.8696 & 0.8981 & 0.8289 & 0.8818 & 0.8899 & 0.9204 \\
+Train\_SVM & 0.8945 & 0.9338 & 0.8468 & 0.8813 & 0.9068 & 0.9479 \\
+Val\_SVM   & 0.8804 & 0.8889 & 0.8684 & 0.9057 & 0.8972 & 0.9247 \\
+\bottomrule
+\end{tabular}
+\caption{Training and validation metrics for RF and SVM (rounded to 4 decimals).}
+\label{tab:train-val-metrics}
+\end{table}
+
+The numerical metrics corroborate the conclusions drawn from the accuracy plot.
+Training and validation performance remain closely aligned across all metrics for
+both models, reinforcing the observation that neither RF nor SVM suffers from
+substantial overfitting. The SVM achieves slightly higher accuracy and AUC, while
+the Random Forest shows marginally higher sensitivity on the training set. Overall,
+both models demonstrate strong and balanced discrimination performance.
+
+
+% =====================================================================
+\section{Model Evaluation}
+% =====================================================================
+
+This section presents the full evaluation of the Random Forest (RF) and Support Vector 
+Machine (SVM) models. We describe the threshold selection method, define the evaluation 
+metrics, and compare model performance using confusion matrices, ROC curves, and final 
+train–test results.
+
+% ---------------------------------------------------------------------
+\subsection{Decision Threshold Selection}
+% ---------------------------------------------------------------------
+
+Although a default cutoff of 0.5 is common in binary classification, it does not always 
+maximise predictive performance. Therefore, thresholds were selected using 
+\textbf{Youden’s index}:
+
+\[
+J = \text{Sensitivity} + \text{Specificity} - 1.
+\]
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l c}
+\toprule
+\textbf{Model} & \textbf{Optimal Threshold} \\
+\midrule
+Random Forest & \textbf{0.4886} \\
+SVM (RBF)     & \textbf{0.4957} \\
+\bottomrule
+\end{tabular}
+\caption{Optimal decision thresholds selected using Youden’s index.}
+\end{table}
+
+These thresholds were used for all final predictions and confusion matrices. Applying 
+model-specific thresholds ensures a better balance between false positives and false 
+negatives, which is particularly important in medical diagnosis. We use Youden’s index 
+because it selects the cutoff that jointly maximises sensitivity and specificity, while 
+a fixed threshold of 0.5 does not account for class imbalance or differences in model 
+calibration. This optimisation slightly improved both sensitivity and overall 
+classification stability compared to using the standard 0.5 cutoff.
+
+
+% ---------------------------------------------------------------------
+\subsection{Evaluation Metrics}
+% ---------------------------------------------------------------------
+
+Model performance was evaluated using standard binary classification metrics. These 
+metrics quantify different aspects of predictive behaviour and are defined in terms of 
+true positives (TP), true negatives (TN), false positives (FP), and false negatives (FN).
+
+\textbf{Accuracy} measures the overall proportion of correct predictions:
+\[
+\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}.
+\]
+
+\textbf{Sensitivity} (also called Recall or True Positive Rate) indicates how well the 
+model identifies patients with heart disease:
+\[
+\text{Sensitivity} = \frac{TP}{TP + FN}.
+\]
+
+\textbf{Specificity} (True Negative Rate) measures the ability to correctly identify 
+patients without heart disease:
+\[
+\text{Specificity} = \frac{TN}{TN + FP}.
+\]
+
+\textbf{Precision} quantifies how many predicted positive cases are actually positive:
+\[
+\text{Precision} = \frac{TP}{TP + FP}.
+\]
+
+\textbf{F1-score} is the harmonic mean of Precision and Sensitivity, providing a 
+balanced measure when false positives and false negatives are both important:
+\[
+\text{F1-score} =
+    2 \cdot \frac{\text{Precision} \cdot \text{Sensitivity}}
+                     {\text{Precision} + \text{Sensitivity}}.
+\]
+
+\textbf{Area Under the ROC Curve (AUC)} evaluates the model’s ability to distinguish 
+between positive and negative cases across all possible thresholds:
+\[
+\text{AUC} = \int_0^1 \text{TPR(FPR)} \, d(\text{FPR}).
+\]
+
+AUC can also be interpreted as the probability that a randomly selected positive case 
+receives a higher predicted score than a randomly selected negative case. A higher AUC 
+indicates stronger overall discriminative ability.
+
+
+% ---------------------------------------------------------------------
+\subsection{Confusion Matrices}
+% ---------------------------------------------------------------------
+
+\begin{figure}[H]
+    \centering
+
+    % ------------------ TRAIN ------------------
+    \begin{subfigure}[t]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{artifacts/final_results/confusion_rf_train.png}
+        \caption{Random Forest — Train}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{artifacts/final_results/confusion_svm_train.png}
+        \caption{SVM — Train}
+    \end{subfigure}
+
+    \vspace{0.9em}
+
+    % ------------------ TEST ------------------
+    \begin{subfigure}[t]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{artifacts/final_results/confusion_rf_test.png}
+        \caption{Random Forest — Test}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{artifacts/final_results/confusion_svm_test.png}
+        \caption{SVM — Test}
+    \end{subfigure}
+
+    \caption{Confusion matrices for Random Forest and SVM on the training and test sets.}
+\end{figure}
+
+The confusion matrices show how many samples each model classified correctly or 
+incorrectly. The diagonal cells show the correct predictions, while the off-diagonal 
+cells show mistakes.
+
+On the \textbf{training set}, the SVM identifies more true heart-disease cases than the 
+Random Forest and makes fewer false negatives. This means the SVM is better at avoiding 
+missed disease cases. Both models produce a noticeable number of false positives, meaning 
+they sometimes classify healthy patients as having heart disease.
+
+On the \textbf{test set}, both models still perform well, but the SVM again makes fewer 
+false negatives (11 compared to 16 for Random Forest). This is important in medical 
+settings, because false negatives represent patients who actually have heart disease 
+but are predicted as healthy. The SVM also shows slightly fewer false positives overall.
+
+In summary, both models work well, but the SVM provides better detection of true 
+heart-disease cases and makes fewer high-risk mistakes. This matches the metric 
+comparison results reported earlier.
+
+% ---------------------------------------------------------------------
+\subsection{ROC Curves}
+% ---------------------------------------------------------------------
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.70\textwidth]{artifacts/final_results/roc_curve_rf_svm.png}
+    \caption{ROC curves for Random Forest and SVM on the test set.}
+\end{figure}
+
+The ROC curves provide a threshold-independent view of model performance by showing 
+how sensitivity and specificity change across all possible decision cutoffs. Both 
+models achieve an AUC above 0.94, which indicates excellent ability to distinguish 
+between patients with and without heart disease.
+
+The SVM curve lies slightly above the Random Forest curve across most of the 
+threshold range. This means the SVM consistently achieves a better trade-off 
+between true positive rate and false positive rate. In practical terms, the SVM is 
+more reliable at ranking patients so that true heart-disease cases receive higher 
+risk scores than non-disease cases.
+
+Overall, the ROC analysis supports the earlier results showing that the SVM provides 
+slightly stronger predictive performance than the Random Forest.
+
+% ---------------------------------------------------------------------
+\subsection{Final Train–Test Evaluation}
+% ---------------------------------------------------------------------
+
+% ------------------ METRIC COMPARISON PLOT ------------------
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{artifacts/final_results/metric_comparison.png}
+    \caption{Comparison of key performance metrics (Accuracy, Sensitivity, Specificity,
+    Precision, F1, and AUC) for Random Forest and SVM on the \textbf{test set}.}
+    \label{fig:metric-comparison}
+\end{figure}
+
+Figure~\ref{fig:metric-comparison} provides a visual summary of how the two models
+perform across the main evaluation metrics. The SVM generally shows slightly higher
+values across most metrics—particularly Sensitivity, Precision, F1-score, and AUC—
+whereas Random Forest shows a small advantage in Specificity. The close height of the
+bars indicates that both models perform consistently, but the SVM holds a modest
+overall edge on the test set. This visual pattern agrees with the quantitative results
+reported in the tables below.
+
+% ------------------ TRAIN METRICS ------------------
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Model} & Acc & Sens & Spec & Prec & F1 & AUC \\
+\midrule
+RF  & \textbf{0.885} & \textbf{0.950} & 0.806 & 0.857 & \textbf{0.901} & \textbf{0.959} \\
+SVM & 0.882 & 0.924 & \textbf{0.831} & \textbf{0.869} & 0.896 & 0.944 \\
+\bottomrule
+\end{tabular}
+\caption{Training performance metrics for Random Forest and SVM. Bold values indicate the higher value between the two models.}
+\end{table}
+
+% ------------------ TEST METRICS ------------------
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Model} & Acc & Sens & Spec & Prec & F1 & AUC \\
+\midrule
+RF  & 0.870 & 0.939 & 0.791 & 0.836 & 0.885 & 0.940 \\
+SVM & \textbf{0.891} & \textbf{0.949} & \textbf{0.826} & \textbf{0.861} & \textbf{0.903} & \textbf{0.944} \\
+\bottomrule
+\end{tabular}
+\caption{Test performance metrics for Random Forest and SVM. Bold values indicate the higher value between the two models.}
+\end{table}
+
+Both models show strong generalisation on unseen data. 
+The SVM model achieves the highest \textbf{accuracy (0.891)}, 
+\textbf{sensitivity (0.949)}, \textbf{F1-score (0.903)}, 
+and \textbf{AUC (0.944)}, indicating better overall performance. 
+Random Forest also performs well but has lower \textbf{specificity (0.791)} 
+and slightly weaker discrimination \textbf{(AUC = 0.940)}. 
+Together with the confusion matrices and ROC analysis presented earlier, 
+these results confirm that the \textbf{SVM with RBF kernel} is the 
+stronger and more reliable model for this classification task.
+
+% =====================================================================
+\section{Interpretation of the Trained Models Using XAI Techniques}
+% =====================================================================
+
+To better understand how the Random Forest (RF) and Support Vector Machine (SVM)
+models arrive at their predictions, we computed global permutation feature
+importance (PFI). PFI quantifies how much the model performance decreases when a
+feature is randomly permuted; a larger drop indicates a more influential feature.
+Thus, PFI provides a global view of how strongly each predictor contributes to
+classification performance.
+
+% ---------------------------------------------------------------------
+\subsection{Global Importance Structure}
+% ---------------------------------------------------------------------
+
+Figures~\ref{fig:rf-fi} and~\ref{fig:svm-fi} display the PFI rankings for RF and
+SVM. In both models, \textbf{ST\_Slope} emerges as the most influential feature,
+highlighting the dominant role of ECG-derived stress-test information in the
+prediction of heart disease. Several other features consistently appear with high
+importance across both models, including \textbf{ChestPainType},
+\textbf{Sex}, \textbf{ExerciseAngina}, \textbf{Cholesterol}, and
+\textbf{Oldpeak}. Although the numerical values differ slightly between the two
+algorithms, the overall ranking of key predictors is highly similar.
+
+% ---------------------------------------------------------------------
+\subsection{Agreement Between RF and SVM}
+% ---------------------------------------------------------------------
+
+Both models show strong agreement in which features carry predictive value.
+Symptom-related variables (ChestPainType, ExerciseAngina) and stress-test metrics
+(ST\_Slope, Oldpeak) consistently appear at the top of the rankings. This
+convergence suggests that the underlying signal in the dataset is robust and that
+different learning algorithms capture similar clinical patterns. Lower-ranked
+features such as \textbf{Age}, \textbf{RestingBP}, and \textbf{RestingECG}
+contribute comparatively little in this modelling context, although this does not
+necessarily diminish their clinical relevance.
+
+% ---------------------------------------------------------------------
+\subsection{Summary of Feature Contributions}
+% ---------------------------------------------------------------------
+
+Across both RF and SVM, the feature importance structure can be summarised as:
+
+\begin{itemize}
+    \item \textbf{Most important:} ST\_Slope  
+    \item \textbf{Moderately important:} ChestPainType, Sex, ExerciseAngina, 
+        Cholesterol, Oldpeak, MaxHR, FastingBS  
+    \item \textbf{Least important:} Age, RestingBP, RestingECG  
+\end{itemize}
+
+These results indicate that the models rely primarily on exercise-related ECG
+characteristics and symptom profiles when predicting heart disease.
+
+% ---------------------------------------------------------------------
+\subsection{Limitations of Global Feature Importance}
+% ---------------------------------------------------------------------
+
+Although PFI is useful for identifying influential predictors, it provides only a
+limited type of explanation. Specifically, PFI does not indicate:
+
+\begin{itemize}
+    \item whether higher feature values increase or decrease predicted risk,
+    \item whether effects are linear or non-linear,
+    \item interactions or joint effects between features,
+    \item case-specific explanations for individual patients.
+\end{itemize}
+
+Gaining such insights would require methods such as SHAP values, partial
+dependence plots (PDP), or individual conditional expectation (ICE) curves.
+
+% ---------------------------------------------------------------------
+\subsection{Overall Interpretation}
+% ---------------------------------------------------------------------
+
+Overall, the feature importance analysis shows that RF and SVM rely on a coherent
+and clinically meaningful set of predictors, with ST\_Slope consistently
+emerging as the dominant feature. The strong agreement between both models
+increases confidence in the stability and interpretability of the findings. These
+results provide a global understanding of the underlying decision logic driving
+the models’ predictions.
+
+
+% ===========================
+% FIGURES
+% ===========================
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{artifacts/interpret/rf_feature_importance_bar.png}
+    \caption{Random Forest feature importance}
+    \label{fig:rf-fi}
+\end{subfigure}
+\hfill
+\begin{subfigure}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{artifacts/interpret/svm_feature_importance_bar.png}
+    \caption{SVM feature importance}
+    \label{fig:svm-fi}
+\end{subfigure}
+\caption{Permutation feature importance for RF and SVM models.}
+\label{fig:fi-combined}
+\end{figure}
+
+
+% =====================================================================
+\begin{thebibliography}{99}
+% =====================================================================
+
+% --- Dataset ---
+\bibitem{dataset}
+Soriano, F. (2020). \textit{Heart Failure Prediction Dataset}. Kaggle. 
+https://www.kaggle.com/datasets/fedesoriano/heart-failure-prediction
+
+% --- Core ML texts ---
+\bibitem{isl}
+James, G., Witten, D., Hastie, T., Tibshirani, R. (2013). 
+\textit{An Introduction to Statistical Learning}. Springer.
+
+\bibitem{esl}
+Hastie, T., Tibshirani, R., Friedman, J. (2009).
+\textit{The Elements of Statistical Learning}. Springer.
+
+\bibitem{bishop}
+Bishop, C. M. (2006). \textit{Pattern Recognition and Machine Learning}. Springer.
+
+% --- Random Forest ---
+\bibitem{breiman}
+Breiman, L. (2001). Random forests. \textit{Machine Learning}, 45(1), 5–32.
+
+\bibitem{ranger}
+Wright, M. N., Ziegler, A. (2017).
+ranger: A fast implementation of random forests for high dimensional data in C++ and R.
+\textit{Journal of Statistical Software}, 77(1), 1–17.
+
+% --- SVM ---
+\bibitem{svm}
+Cortes, C., Vapnik, V. (1995). Support-vector networks. 
+\textit{Machine Learning}, 20, 273–297.
+
+\bibitem{rbf}
+Schölkopf, B., Smola, A. J. (2002). 
+\textit{Learning with Kernels}. MIT Press.
+
+% --- Additional ML optimisation ---
+\bibitem{gridsearch}
+Bergstra, J., Bengio, Y. (2012).
+Random Search for Hyper-Parameter Optimization. 
+\textit{Journal of Machine Learning Research}, 13, 281–305.
+
+\bibitem{bayesopt}
+Shahriari, B., et al. (2016).
+Taking the Human Out of the Loop: A Review of Bayesian Optimization.
+\textit{Proceedings of the IEEE}, 104(1), 148–175.
+
+% --- Cross-validation & tuning ---
+\bibitem{caret}
+Kuhn, M. (2008). Building Predictive Models in R Using the caret Package.
+\textit{Journal of Statistical Software}, 28(5), 1–26.
+
+\bibitem{cv}
+Kohavi, R. (1995). A study of cross-validation and bootstrap for accuracy estimation. 
+\textit{IJCAI}.
+
+% --- Evaluation metrics ---
+\bibitem{youden}
+Florkowski, C. M. (2008). 
+Sensitivity, specificity, ROC curves, and Youden’s index. 
+\textit{Clin Biochem Rev}, 29(Suppl 1), S83–S87.
+
+\bibitem{roc}
+Hanley, J. A., McNeil, B. J. (1982). 
+The meaning and use of the area under the ROC curve. 
+\textit{Radiology}, 143(1), 29–36.
+
+% --- Explainable AI ---
+\bibitem{molnar}
+Molnar, C. (2022). \textit{Interpretable Machine Learning}. 
+https://christophm.github.io/interpretable-ml-book/
+
+\bibitem{shap}
+Lundberg, S. M., Lee, S.-I. (2017).
+A Unified Approach to Interpreting Model Predictions. 
+\textit{NeurIPS}.
+
+% --- Preprocessing & standardisation ---
+\bibitem{standard}
+Gelman, A. (2008). 
+Scaling regression inputs by dividing by two standard deviations. 
+\textit{Stat Med}, 27(15), 2865–2873.
+
+\bibitem{normalization}
+Ioffe, S., Szegedy, C. (2015). Batch normalization: Accelerating deep network training. 
+\textit{ICML}.
+
+% --- Medical domain ---
+\bibitem{heart}
+Gulati, M. et al. (2021). 
+Heart Disease and Risk Assessment: A Clinical Overview. 
+\textit{Circulation}, 143(5), 583–596.
+
+\bibitem{esc}
+Visseren, F. et al. (2021). 
+2021 ESC Guidelines on Cardiovascular Prevention. 
+\textit{European Heart Journal}.
+
+% --- AI Model Citations ---
+\bibitem{chatgpt}
+OpenAI. (2024). \textit{ChatGPT (GPT-5.1) Model}.  
+https://www.openai.com/
+
+\bibitem{gemini}
+Google DeepMind. (2024). \textit{Gemini Large Language Model}.  
+https://deepmind.google/
+
+\bibitem{grok}
+xAI. (2024). \textit{Grok Large Language Model}.  
+https://x.ai/
+
+\end{thebibliography}
+
+\end{document}
