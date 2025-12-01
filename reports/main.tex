@@ -11,10 +11,33 @@
 \usepackage{amssymb}
 \usepackage{subcaption}
 \usepackage{geometry}
-\usepackage{url}
-\usepackage{hyperref}
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{xurl}   % allows line-breaking of long URLs
+\usepackage{hyperref}   % ALWAYS LAST
+
+% ===== Disable \textbf only in body text, keep bold section titles =====
+\let\oldtextbf\textbf
+\renewcommand{\textbf}[1]{\textrm{#1}}
+
+% Page layout
+\geometry{margin=1in}
+\onehalfspacing
+
+% Title/section spacing
+\titlespacing*{\section}{0pt}{1.5ex}{1ex}
+\titlespacing*{\subsection}{0pt}{1ex}{0.8ex}
+\titlespacing*{\subsubsection}{0pt}{0.8ex}{0.5ex}
+
+% Reduce figure spacing
+\setlength{\intextsep}{6pt}
+\setlength{\textfloatsep}{10pt}
+\setlength{\floatsep}{8pt}
+
+% Reduce equation spacing
+\setlength{\abovedisplayskip}{8pt}
+\setlength{\belowdisplayskip}{8pt}
+
 
 % Page layout
 \geometry{margin=1in}
@@ -87,11 +110,13 @@ curve (AUC). The SVM achieved the strongest test performance (Accuracy = 0.891, 
 while the RF model performed competitively across most metrics.
 
 Model interpretability was enhanced using permutation-based feature importance, which 
-identified ECG- and exercise-related predictors such as \texttt{ST\_Slope}, 
-\texttt{ChestPainType}, and \texttt{Oldpeak} as the most influential factors.
+identified ECG- and exercise-related predictors such as ST Slope, 
+Chest Pain Type, and Old peak as the most influential factors.
 
 All code, analysis scripts, and generated results are openly available at:\\
-\textbf{\url{https://github.com/atikul-islam-sajib/heart-disease-classifier}}.
+\href{https://github.com/atikul-islam-sajib/heart-disease-classifier}{\textbf{GitHub Repository}}.
+
+
 \end{abstract}
 
 
@@ -105,44 +130,70 @@ All code, analysis scripts, and generated results are openly available at:\\
 % =====================================================================
 
 Cardiovascular disease is the leading cause of mortality worldwide, making early and
-accurate risk prediction an essential component of modern clinical decision support.
-Machine learning (ML) techniques offer powerful tools for analysing complex patient
-profiles and identifying patterns not easily captured by traditional statistical methods.
+accurate risk prediction an important component of modern clinical decision support.
+Machine learning (ML) techniques provide effective tools for analysing complex patient
+profiles and identifying patterns that traditional statistical methods may not capture.
 This study develops and compares ML models for predicting whether a patient has heart
-disease based on routinely collected demographic and clinical variables.
+disease using demographic and clinical variables.
 
-The target variable, \texttt{HeartDisease}, indicates disease presence (\texttt{Yes}) or
-absence (\texttt{No}). The predictors include demographic attributes (e.g., \texttt{Age},
-\texttt{Sex}) and clinically relevant measurements such as \texttt{ChestPainType},
-\texttt{RestingBP}, \texttt{Cholesterol}, \texttt{MaxHR}, \texttt{ExerciseAngina},
-\texttt{Oldpeak}, and \texttt{ST\_Slope}, which are commonly used in cardiovascular
-assessment and stress-test diagnostics.
+The target variable, Heart Disease, indicates the presence or absence of heart
+disease. The predictors include demographic attributes such as Age and
+Sex, as well as clinical measurements including Chest Pain Type,
+Resting BP, Cholesterol, Max HR, Exercise Angina,
+Old peak, and ST Slope. These variables are commonly used in
+cardiovascular assessment and stress-test analysis.
 
-The data originate from the \emph{Heart Failure Prediction} dataset on Kaggle
-(fedesoriano),\footnote{Soriano, F. (2020). \textit{Heart Failure Prediction Dataset}.
-Kaggle. \url{https://www.kaggle.com/datasets/fedesoriano/heart-failure-prediction}}
-containing 918 observations and 12 features with no missing values. It integrates
-clinical, ECG, and exercise-related information, making it a widely used benchmark for
-classification tasks.
+The data originate from the Heart Failure Prediction dataset on Kaggle (fedesoriano), 
+which is publicly available at 
+\href{https://www.kaggle.com/datasets/fedesoriano/heart-failure-prediction}{Dataset Link}.
 
-The dataset was split into training (60\%), validation (20\%), and test (20\%) subsets.
-Two supervised algorithms—\textbf{Random Forest (RF)} and \textbf{Support Vector Machine
-(SVM)} with an RBF kernel—were trained and optimised through cross-validation and grid
-search. A detailed exploratory data analysis (EDA) was performed beforehand to understand
-distributional patterns and relationships among predictors.
 
-The key objectives of this project are:
-\begin{itemize}
-    \item to train and optimise ML models using robust validation procedures,
-    \item to evaluate performance using accuracy, sensitivity, specificity, F1-score, and AUC,
-    \item to compare the generalisation ability of RF and SVM on unseen test data,
-    \item and to identify the most influential predictors using \textbf{explainable AI (XAI)}
-          techniques.
-\end{itemize}
+It contains 918 observations and 12 features with no missing values. The dataset
+integrates clinical, ECG, and exercise-related measurements, making it a widely used
+benchmark for machine-learning classification tasks.
 
-Overall, this project aims to develop accurate and interpretable ML models for heart
-disease prediction and to provide insight into the clinical factors most strongly
-associated with cardiovascular risk.
+The dataset was divided into training (60\%), validation (20\%), and test (20\%) subsets.
+Two supervised learning algorithms, Random Forest (RF) and Support Vector Machine (SVM)
+with a radial basis function (RBF) kernel, were trained and tuned using cross-validation
+and grid search. A comprehensive exploratory data analysis was conducted beforehand to
+examine feature distributions and relationships.
+
+This project aims to build accurate ML models for heart-disease prediction, evaluate
+their performance using standard classification metrics, compare their generalisation
+ability on unseen data, and identify the most influential clinical variables contributing
+to the predictions. The overall goal is to develop interpretable and reliable models that
+can support clinical decision-making and provide insight into important risk factors for
+cardiovascular disease.
+
+
+
+
+% =====================================================================
+\section{Literature Review}
+% =====================================================================
+
+Machine learning has become an essential tool for predicting heart disease because of 
+its ability to uncover complex, nonlinear relationships in clinical data. A number of 
+studies have demonstrated that supervised learning algorithms—such as Support Vector 
+Machines (SVM), Random Forests (RF), Logistic Regression, and boosting-based 
+ensemble methods—achieve strong performance on standard cardiovascular datasets.  
+Kumar et al.\ \cite{Kumar2025_review} provide a comprehensive review showing that ML 
+approaches consistently outperform traditional statistical methods for heart-disease 
+risk assessment. Similarly, Ekle et al.\ \cite{Ekle2024_systematic} compared multiple 
+supervised models and reported that tree-based ensembles and SVM are the most reliable 
+classifiers across datasets such as Cleveland, Statlog, and Framingham.  
+Hossain et al.\ \cite{Hossain2024_RF} found that Random Forest achieved the highest 
+accuracy and robustness compared to decision trees, Naive Bayes, and logistic 
+regression on a clinical heart-disease dataset. Other comparative studies—including 
+Rimal et al.\ \cite{Rimal2025_comparative} and Baxani and Edinburgh \cite{Baxani2022_heart}—also 
+show that SVM and RF consistently rank among the top-performing models for heart-disease 
+prediction, particularly when combined with systematic feature preprocessing and 
+cross-validation.  
+Overall, the literature strongly supports the use of RF and SVM models, aligning with 
+the modelling choices adopted in this study.
+
+
+
 
 
 
@@ -151,37 +202,81 @@ associated with cardiovascular risk.
 % =====================================================================
 
 This section provides a descriptive and statistical overview of the variables in the
-Heart Failure Prediction dataset. We examine their distributions, relationships, and
-differences between patients with and without heart disease. These insights help guide
-the modelling process and highlight features likely to hold predictive value.
-
-
+Heart Failure Prediction dataset. We summarise the structure of the data and provide
+a detailed description of each feature included in the modelling process. These
+insights guide the modelling choices and help identify predictors likely to hold
+discriminatory value.
 
 % =====================================================================
 \subsection{Structure of the Training Data}
 % =====================================================================
 
-The training set contains 550 observations and 12 variables, comprising six numeric and
-five categorical predictors. The target variable, \texttt{HeartDisease}, includes 
-248 \texttt{No} cases and 302 \texttt{Yes} cases, indicating a reasonably balanced 
-class distribution. No missing values were present in the dataset.
+The dataset contains 918 observations and 12 variables, consisting of six numeric and 
+five categorical predictors, along with the binary target variable Heart Disease.
+Among the 918 samples, 410 patients are labelled 0 (no heart disease) and 
+508 are labelled 1 (heart disease), which indicates a mild class imbalance but 
+still allows for reliable model training. No missing values were found in the dataset.
 
-The numeric variables are: \texttt{Age}, \texttt{RestingBP}, \texttt{Cholesterol},
-\texttt{FastingBS}, \texttt{MaxHR}, and \texttt{Oldpeak}. The categorical variables are:
-\texttt{Sex}, \texttt{ChestPainType}, \texttt{RestingECG}, \texttt{ExerciseAngina}, and 
-\texttt{ST\_Slope}. These variables include demographic information, clinical measurements, 
-and ECG- or exercise-related indicators that are commonly used in cardiovascular assessment.
+Several categorical variables in the raw data are encoded as text labels rather than 
+numeric values. For example, Sex is represented as M/F and 
+Chest Pain Type includes categories such as ATA, NAP, 
+ASY, and TA. While this improves human readability, these variables 
+require conversion to numerical form (e.g., one-hot or ordinal encoding) prior to 
+modelling. A detailed overview of each feature, including its data type and meaning in 
+the raw CSV file, is provided in Table~\ref{tab:feature_description}.
 
 All numeric variables were standardised using the $z$-score transformation:
 \[
 z = \frac{x - \mu}{\sigma},
 \]
-where $\mu$ and $\sigma$ denote the mean and standard deviation of each feature. 
-Standardisation ensures that predictors measured on different scales contribute 
-equally during model training. This preprocessing step is particularly important for 
-distance-based and kernel-based algorithms, such as SVM. It also facilitates 
-interpretability during exploratory analysis by placing all numeric features on a 
-comparable scale.
+where $\mu$ and $\sigma$ denote the mean and standard deviation of each feature. This
+standardisation ensures that all numeric predictors contribute comparably during model
+fitting, particularly benefiting algorithms such as SVM that rely on distance or 
+kernel computations.
+
+% =====================================================================
+\subsection{Feature Description}
+% =====================================================================
+
+\begin{table}[H]
+\centering
+\caption{Feature Description Based on the Raw CSV Data}
+\label{tab:feature_description}
+\begin{tabular}{|c|l|l|p{7.5cm}|}
+\hline
+\textbf{No.} & \textbf{Feature} & \textbf{Data Type} & \textbf{Description (as in CSV)} \\ \hline
+1 & Age & Numeric & Patient’s age in years. \\ \hline
+2 & Sex & Nominal & Sex of the patient: \texttt{M} = Male, \texttt{F} = Female. \\ \hline
+3 & ChestPainType & Nominal & Chest pain type: 
+\texttt{ATA} = Atypical angina, 
+\texttt{NAP} = Non–anginal pain, 
+\texttt{ASY} = Asymptomatic, 
+\texttt{TA} = Typical angina. \\ \hline
+4 & RestingBP & Numeric & Resting blood pressure (mm/Hg). \\ \hline
+5 & Cholesterol & Numeric & Serum cholesterol level (mg/dl). \\ \hline
+6 & FastingBS & Nominal & Fasting blood sugar: 
+0 = $\le$ 120 mg/dl, 
+1 = $>$ 120 mg/dl. \\ \hline
+7 & RestingECG & Nominal & Resting ECG results: 
+\texttt{Normal}, 
+\texttt{ST} = ST–T wave abnormality, 
+\texttt{LVH} = Left ventricular hypertrophy. \\ \hline
+8 & MaxHR & Numeric & Maximum heart rate achieved. \\ \hline
+9 & ExerciseAngina & Nominal & Exercise-induced angina: 
+\texttt{Y} = Yes, 
+\texttt{N} = No. \\ \hline
+10 & Oldpeak & Numeric & ST depression induced by exercise relative to rest. \\ \hline
+11 & ST\_Slope & Nominal & Slope of peak exercise ST segment: 
+\texttt{Up} = Upsloping, 
+\texttt{Flat} = Flat, 
+\texttt{Down} = Downsloping. \\ \hline
+\multicolumn{4}{|l|}{\textbf{Target Variable}} \\ \hline
+12 & HeartDisease & Nominal & 
+1 = Heart disease present, 
+0 = No heart disease. \\ \hline
+\end{tabular}
+\end{table}
+
 
 
 
@@ -204,10 +299,10 @@ comparable scale.
     \label{fig:numeric-hists}
 \end{figure}
 
-The numeric variables show different distribution shapes. \texttt{Age} and
-\texttt{MaxHR} follow smooth, unimodal distributions. \texttt{RestingBP},
-\texttt{Cholesterol}, and \texttt{Oldpeak} display clear right-skewness, including some
-high-value outliers. \texttt{FastingBS} behaves as a binary variable with two peaks.
+The numeric variables show different distribution shapes. Age and
+Max HR follow smooth, unimodal distributions. Resting BP,
+Cholesterol, and Old peak display clear right-skewness, including some
+high-value outliers. Fasting BS behaves as a binary variable with two peaks.
 These differences in skewness and scale support the use of standardisation before model
 training.
 
@@ -242,8 +337,8 @@ favour one class simply due to its frequency.
     \label{fig:cat-bars}
 \end{figure}
 
-Most patients are male, have asymptomatic chest pain (\texttt{ASY}), and show a normal 
-resting ECG. A large majority present a flat \texttt{ST\_Slope}, a pattern consistent 
+Most patients are male, have asymptomatic chest pain ASY, and show a normal 
+resting ECG. A large majority present a flat ST Slope, a pattern consistent 
 with typical clinical heart disease datasets.
 
 % =====================================================================
@@ -261,9 +356,9 @@ with typical clinical heart disease datasets.
     \label{fig:numeric-box}
 \end{figure}
 
-Patients with heart disease are generally older, show lower \texttt{MaxHR}, and exhibit 
-substantially higher \texttt{Oldpeak}. \texttt{FastingBS} equals 1 more often among the 
-disease group. Differences in \texttt{RestingBP} and \texttt{Cholesterol} are weaker but 
+Patients with heart disease are generally older, show lower Max HR, and exhibit 
+substantially higher Old peak. Fasting BS equals 1 more often among the 
+disease group. Differences in Resting BP and Cholesterol are weaker but 
 still visible.
 
 % =====================================================================
@@ -280,9 +375,9 @@ still visible.
     \label{fig:cat-prop}
 \end{figure}
 
-\texttt{ChestPainType} shows the strongest categorical separation. Exercise-induced 
+Chest Pain Type shows the strongest categorical separation. Exercise-induced 
 angina and downward or flat ST slopes are also strongly associated with heart disease, 
-whereas \texttt{RestingECG} shows little differentiation.
+whereas Resting ECG shows little differentiation.
 
 % =====================================================================
 \subsection{Correlation Between Numeric Predictors}
@@ -294,7 +389,7 @@ whereas \texttt{RestingECG} shows little differentiation.
     \label{fig:corr}
 \end{figure}
 
-Overall, the correlation matrix shows that the numeric predictors are mostly weakly related to one another. The only noticeable pattern is the expected negative relationship between Age and MaxHR, reflecting that older patients usually reach lower maximum heart rates. There is also a mild positive relationship between Age and Oldpeak, indicating slightly higher exercise-induced ST depression in older individuals.
+Overall, the correlation matrix shows that the numeric predictors are mostly weakly related to one another. The only noticeable pattern is the expected negative relationship between Age and Max HR, reflecting that older patients usually reach lower maximum heart rates. There is also a mild positive relationship between Age and Old peak, indicating slightly higher exercise-induced ST depression in older individuals.
 
 All other variable pairs show minimal or no linear association, meaning that each numeric feature contributes largely independent information to the modelling process.
 
@@ -311,10 +406,10 @@ All other variable pairs show minimal or no linear association, meaning that eac
     \label{fig:age-scatters}
 \end{figure}
 
-A strong negative trend is observed between \texttt{Age} and \texttt{MaxHR}, while older 
-patients tend to show higher \texttt{Oldpeak}. Other variables show no meaningful 
+A strong negative trend is observed between Age and Max HR, while older 
+patients tend to show higher Old peak. Other variables show no meaningful 
 age-related structure. These patterns agree with clinical expectations: maximum heart 
-rate naturally declines with age, and exercise-induced ST depression (\texttt{Oldpeak}) 
+rate naturally declines with age, and exercise-induced ST depression Old peak 
 often becomes more pronounced in older individuals. Overall, the plots suggest that age 
 plays an important role mainly through its relationship with exercise-related measures, 
 rather than through resting clinical variables.
@@ -330,11 +425,11 @@ rather than through resting clinical variables.
     \label{fig:loess-age-maxhr}
 \end{figure}
 
-The LOESS curve confirms a smooth decline in \texttt{MaxHR} with age. Across all ages, 
-patients with heart disease tend to have consistently lower \texttt{MaxHR}. This pattern 
+The LOESS curve confirms a smooth decline in Max HR with age. Across all ages, 
+patients with heart disease tend to have consistently lower Max HR. This pattern 
 suggests that reduced heart performance during exercise is strongly linked to disease 
 presence. The smooth trend also indicates that the relationship is stable and not driven 
-by a few extreme values. Overall, the plot highlights \texttt{MaxHR} as an important 
+by a few extreme values. Overall, the plot highlights Max HR as an important 
 indicator of cardiovascular health.
 
 
@@ -348,8 +443,8 @@ indicator of cardiovascular health.
     \label{fig:facet-sex}
 \end{figure}
 
-Male patients exhibit a wider spread in \texttt{MaxHR} and tend to show higher 
-\texttt{Oldpeak} values. A dense cluster of low \texttt{MaxHR} and high \texttt{Oldpeak} 
+Male patients exhibit a wider spread in Max HR and tend to show higher 
+Old peak values. A dense cluster of low Max HR and high Old peak 
 is strongly associated with heart disease, particularly among men.
 
 % =====================================================================
@@ -368,11 +463,11 @@ All numeric features differ significantly between groups:
 
 \begin{itemize}
     \item \textbf{Age}: Higher for disease patients ($p < 10^{-11}$).
-    \item \textbf{RestingBP}: Slightly higher in the disease group ($p = 0.002$).
+    \item \textbf{Resting BP}: Slightly higher in the disease group ($p = 0.002$).
     \item \textbf{Cholesterol}: Higher for non-disease patients ($p < 10^{-6}$).
-    \item \textbf{FastingBS}: Higher in the disease group ($p < 10^{-8}$).
-    \item \textbf{MaxHR}: Markedly lower for disease patients ($p \approx 0$).
-    \item \textbf{Oldpeak}: Markedly higher for disease patients ($p \approx 0$).
+    \item \textbf{Fasting BS}: Higher in the disease group ($p < 10^{-8}$).
+    \item \textbf{Max HR}: Markedly lower for disease patients ($p \approx 0$).
+    \item \textbf{Old peak}: Markedly higher for disease patients ($p \approx 0$).
 \end{itemize}
 
 \subsubsection*{Categorical Variables}
@@ -381,18 +476,18 @@ Most categorical features show strong associations with heart disease:
 
 \begin{itemize}
     \item \textbf{Sex}: Significant association ($p < 10^{-14}$).
-    \item \textbf{ChestPainType}: Very strong relationship ($p \approx 0$).
-    \item \textbf{ExerciseAngina}: Highly significant ($p \approx 0$).
-    \item \textbf{ST\_Slope}: Strongest association among categorical variables ($p \approx 0$).
-    \item \textbf{RestingECG}: Not significant ($p = 0.051$).
+    \item \textbf{Chest Pain Type}: Very strong relationship ($p \approx 0$).
+    \item \textbf{Exercise Angina}: Highly significant ($p \approx 0$).
+    \item \textbf{ST Slope}: Strongest association among categorical variables ($p \approx 0$).
+    \item \textbf{Resting ECG}: Not significant ($p = 0.051$).
 \end{itemize}
 
 Both the descriptive visualisations and the statistical tests highlight clear and 
 clinically meaningful differences between patients with and without heart disease. 
-Exercise-related variables—\textbf{MaxHR}, \textbf{Oldpeak}, \textbf{ST\_Slope}, and 
-\textbf{ExerciseAngina}—show the strongest separation and are therefore expected to be 
+Exercise-related variables—\textbf{Max HR}, \textbf{Old peak}, \textbf{ST Slope}, and 
+\textbf{Exercise Angina}—show the strongest separation and are therefore expected to be 
 important predictors in the subsequent modelling steps. In contrast, 
-\textbf{RestingECG} shows no significant difference between groups. These findings 
+\textbf{Resting ECG} shows no significant difference between groups. These findings 
 provide a strong empirical foundation for the machine learning models developed in the 
 following sections.
 
@@ -987,7 +1082,7 @@ missed disease cases. Both models produce a noticeable number of false positives
 they sometimes classify healthy patients as having heart disease.
 
 On the \textbf{test set}, both models still perform well, but the SVM again makes fewer 
-false negatives (11 compared to 16 for Random Forest). This is important in medical 
+false negatives. This is important in medical 
 settings, because false negatives represent patients who actually have heart disease 
 but are predicted as healthy. The SVM also shows slightly fewer false positives overall.
 
@@ -1046,7 +1141,7 @@ reported in the tables below.
 \small
 \begin{tabular}{lcccccc}
 \toprule
-\textbf{Model} & Acc & Sens & Spec & Prec & F1 & AUC \\
+\textbf{Model} & Accuracy & Sensitivity & Specificity & Precision & F1 & AUC \\
 \midrule
 RF  & \textbf{0.885} & \textbf{0.950} & 0.806 & 0.857 & \textbf{0.901} & \textbf{0.959} \\
 SVM & 0.882 & 0.924 & \textbf{0.831} & \textbf{0.869} & 0.896 & 0.944 \\
@@ -1061,7 +1156,7 @@ SVM & 0.882 & 0.924 & \textbf{0.831} & \textbf{0.869} & 0.896 & 0.944 \\
 \small
 \begin{tabular}{lcccccc}
 \toprule
-\textbf{Model} & Acc & Sens & Spec & Prec & F1 & AUC \\
+\textbf{Model} & Accuracy & Sensitivity & Specificity & Precision  & F1 & AUC \\
 \midrule
 RF  & 0.870 & 0.939 & 0.791 & 0.836 & 0.885 & 0.940 \\
 SVM & \textbf{0.891} & \textbf{0.949} & \textbf{0.826} & \textbf{0.861} & \textbf{0.903} & \textbf{0.944} \\
@@ -1071,11 +1166,11 @@ SVM & \textbf{0.891} & \textbf{0.949} & \textbf{0.826} & \textbf{0.861} & \textb
 \end{table}
 
 Both models show strong generalisation on unseen data. 
-The SVM model achieves the highest \textbf{accuracy (0.891)}, 
-\textbf{sensitivity (0.949)}, \textbf{F1-score (0.903)}, 
-and \textbf{AUC (0.944)}, indicating better overall performance. 
-Random Forest also performs well but has lower \textbf{specificity (0.791)} 
-and slightly weaker discrimination \textbf{(AUC = 0.940)}. 
+The SVM model achieves the highest \textbf{accuracy = 0.891}, 
+\textbf{sensitivity = 0.949}, \textbf{F1-score = 0.903}, 
+and \textbf{AUC = 0.944}, indicating better overall performance. 
+Random Forest also performs well but has lower \textbf{specificity 0.791} 
+and slightly weaker discrimination \textbf{AUC = 0.940}. 
 Together with the confusion matrices and ROC analysis presented earlier, 
 these results confirm that the \textbf{SVM with RBF kernel} is the 
 stronger and more reliable model for this classification task.
@@ -1099,9 +1194,9 @@ Figures~\ref{fig:rf-fi} and~\ref{fig:svm-fi} display the PFI rankings for RF and
 SVM. In both models, \textbf{ST\_Slope} emerges as the most influential feature,
 highlighting the dominant role of ECG-derived stress-test information in the
 prediction of heart disease. Several other features consistently appear with high
-importance across both models, including \textbf{ChestPainType},
-\textbf{Sex}, \textbf{ExerciseAngina}, \textbf{Cholesterol}, and
-\textbf{Oldpeak}. Although the numerical values differ slightly between the two
+importance across both models, including \textbf{Chest Pain Type},
+\textbf{Sex}, \textbf{Exercise Angina}, \textbf{Cholesterol}, and
+\textbf{Old peak}. Although the numerical values differ slightly between the two
 algorithms, the overall ranking of key predictors is highly similar.
 
 % ---------------------------------------------------------------------
@@ -1109,11 +1204,11 @@ algorithms, the overall ranking of key predictors is highly similar.
 % ---------------------------------------------------------------------
 
 Both models show strong agreement in which features carry predictive value.
-Symptom-related variables (ChestPainType, ExerciseAngina) and stress-test metrics
-(ST\_Slope, Oldpeak) consistently appear at the top of the rankings. This
+Symptom-related variables for instances, Chest Pain Type, Exercise Angina and stress-test metrics
+for instances, ST Slope, Old peak consistently appear at the top of the rankings. This
 convergence suggests that the underlying signal in the dataset is robust and that
 different learning algorithms capture similar clinical patterns. Lower-ranked
-features such as \textbf{Age}, \textbf{RestingBP}, and \textbf{RestingECG}
+features such as \textbf{Age}, \textbf{Resting BP}, and \textbf{Resting ECG}
 contribute comparatively little in this modelling context, although this does not
 necessarily diminish their clinical relevance.
 
@@ -1124,10 +1219,10 @@ necessarily diminish their clinical relevance.
 Across both RF and SVM, the feature importance structure can be summarised as:
 
 \begin{itemize}
-    \item \textbf{Most important:} ST\_Slope  
-    \item \textbf{Moderately important:} ChestPainType, Sex, ExerciseAngina, 
-        Cholesterol, Oldpeak, MaxHR, FastingBS  
-    \item \textbf{Least important:} Age, RestingBP, RestingECG  
+    \item \textbf{Most important:} ST Slope  
+    \item \textbf{Moderately important:} Chest Pain Type, Sex, Exercise Angina, 
+        Cholesterol, Old peak, Max HR, Fasting BS  
+    \item \textbf{Least important:} Age, Resting BP, Resting ECG  
 \end{itemize}
 
 These results indicate that the models rely primarily on exercise-related ECG
@@ -1155,7 +1250,7 @@ dependence plots (PDP), or individual conditional expectation (ICE) curves.
 % ---------------------------------------------------------------------
 
 Overall, the feature importance analysis shows that RF and SVM rely on a coherent
-and clinically meaningful set of predictors, with ST\_Slope consistently
+and clinically meaningful set of predictors, with ST Slope consistently
 emerging as the dominant feature. The strong agreement between both models
 increases confidence in the stability and interpretability of the findings. These
 results provide a global understanding of the underlying decision logic driving
@@ -1185,15 +1280,71 @@ the models’ predictions.
 \label{fig:fi-combined}
 \end{figure}
 
+% =====================================================================
+\section{Conclusion}
+% =====================================================================
+
+This project investigated the use of supervised machine learning methods for predicting
+heart disease using a structured clinical dataset containing demographic, ECG, and
+exercise-related variables. Through a systematic workflow that included exploratory data
+analysis, feature standardisation, hyperparameter optimisation, and independent test
+evaluation, two models—Random Forest and Support Vector Machine with an RBF kernel—
+were developed and compared.
+
+Both models demonstrated strong and stable predictive performance. The SVM achieved the
+highest overall accuracy, sensitivity, F1-score, and AUC on the test set, indicating
+superior discrimination between patients with and without heart disease. Random Forest
+also performed well but showed slightly lower specificity and weaker generalisation.
+Across all evaluations, the SVM model proved to be the more reliable classifier for this
+task.
+
+Model interpretability was examined using permutation feature importance, which revealed
+that exercise-related and ECG-derived variables—particularly ST Slope, Chest Pain Type,
+Exercise Angina, Old peak, and Max HR—were the most influential predictors. These
+findings align with established clinical knowledge and confirm that the models capture
+clinically meaningful patterns.
+
+Overall, the results show that machine learning techniques are effective tools for
+heart-disease prediction and can support clinical decision-making by highlighting key
+risk factors. Future work may incorporate larger and more diverse datasets, apply
+advanced interpretability methods such as SHAP values, or extend the analysis to
+probabilistic and deep-learning models to further improve predictive performance and
+explanatory depth.
+
 
 % =====================================================================
 \begin{thebibliography}{99}
 % =====================================================================
 
+\bibitem{Kumar2025_review}
+Kumar, R., et al. (2025). 
+A comprehensive review of machine learning for heart disease prediction. 
+\textit{Frontiers in Artificial Intelligence}.
+
+\bibitem{Ekle2024_systematic}
+Ekle, F. A., et al. (2024). 
+Machine learning models for heart disease prediction: a comparative summary of supervised algorithms. 
+\textit{Journal of Healthcare Informatics Research}.
+
+\bibitem{Hossain2024_RF}
+Hossain, S., et al. (2024). 
+Machine learning approach for predicting cardiovascular disease. 
+\textit{Cardiovascular Informatics Journal}.
+
+\bibitem{Rimal2025_comparative}
+Rimal, Y., et al. (2025). 
+Comparative analysis of heart disease prediction using Logistic Regression, SVM, KNN, and Random Forest. 
+\textit{Scientific Reports}.
+
+\bibitem{Baxani2022_heart}
+Baxani, R., \& Edinburgh, M. (2022). 
+Heart Disease Prediction Using Machine Learning Algorithms: Logistic Regression, Support Vector Machine and Random Forest Techniques. 
+\textit{International Journal of Computing and Digital Systems}.
+
 % --- Dataset ---
 \bibitem{dataset}
 Soriano, F. (2020). \textit{Heart Failure Prediction Dataset}. Kaggle. 
-https://www.kaggle.com/datasets/fedesoriano/heart-failure-prediction
+\url{https://www.kaggle.com/datasets/fedesoriano/heart-failure-prediction}
 
 % --- Core ML texts ---
 \bibitem{isl}
@@ -1259,7 +1410,7 @@ The meaning and use of the area under the ROC curve.
 % --- Explainable AI ---
 \bibitem{molnar}
 Molnar, C. (2022). \textit{Interpretable Machine Learning}. 
-https://christophm.github.io/interpretable-ml-book/
+\url{https://christophm.github.io/interpretable-ml-book/}
 
 \bibitem{shap}
 Lundberg, S. M., Lee, S.-I. (2017).
@@ -1290,15 +1441,15 @@ Visseren, F. et al. (2021).
 % --- AI Model Citations ---
 \bibitem{chatgpt}
 OpenAI. (2024). \textit{ChatGPT (GPT-5.1) Model}.  
-https://www.openai.com/
+\url{https://www.openai.com/}
 
 \bibitem{gemini}
 Google DeepMind. (2024). \textit{Gemini Large Language Model}.  
-https://deepmind.google/
+\url{https://deepmind.google/}
 
 \bibitem{grok}
 xAI. (2024). \textit{Grok Large Language Model}.  
-https://x.ai/
+\url{https://x.ai/}
 
 \end{thebibliography}
 
