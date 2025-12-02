@@ -42,11 +42,9 @@ test$HeartDisease  <- target(test$HeartDisease)
 #           Missing value check + Imbalanced or not
 ###############################################################
 
-# Missing value check
 cat("Missing values in train:\n")
 print(check_missing(train))
 
-# Class balance
 cat("Class balance (train):\n")
 print(class_balance(train))
 
@@ -59,14 +57,32 @@ print(class_balance(train))
 num_cols <- c("Age", "RestingBP", "Cholesterol",
               "FastingBS", "MaxHR", "Oldpeak")
 
+# Fit preprocessing object on TRAIN ONLY
 preproc <- preProcess(train[, num_cols], method = c("center", "scale"))
 
+# Apply scaling to train, val, and test
 train[, num_cols] <- predict(preproc, train[, num_cols])
 val[,   num_cols] <- predict(preproc, val[,   num_cols])
 test[,  num_cols] <- predict(preproc, test[,  num_cols])
+
+##################################################################################################
+#                           Save processed data (scaled)
+##################################################################################################
 
 write.csv(train, "data/processed/train_scaled.csv", row.names = FALSE)
 write.csv(val,   "data/processed/val_scaled.csv",   row.names = FALSE)
 write.csv(test,  "data/processed/test_scaled.csv",  row.names = FALSE)
 
-cat("Preprocessing is completed")
+##################################################################################################
+#                           Save SCALER used for numeric standardization
+#       This scaler (preproc) will be used in the Shiny app so predictions match model training
+##################################################################################################
+
+if (!dir.exists("checkpoints")) {
+  dir.create("checkpoints", recursive = TRUE)
+}
+
+saveRDS(preproc, "checkpoints/scaler.rds")
+cat("Scaler saved as checkpoints/scaler.rds\n")
+
+cat("Preprocessing is completed\n")
