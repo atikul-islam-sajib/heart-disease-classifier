@@ -1,0 +1,1210 @@
+---
+title: "Heart Disease Prediction Classifier"
+author:
+- Atikul Islam Sajib
+- Mohammed Mahmudul Hasan
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_depth: 4
+    number_sections: false
+    df_print: paged
+    code_folding: hide
+  pdf_document:
+    toc: true
+    toc_depth: '4'
+subtitle: "End-to-end pipeline for heart disease prediction using the Heart dataset.
+  Includes preprocessing, EDA, RF + SVM tuning, diagnostics, Youden threshold tuning,
+  final test evaluation, and XAI artifacts."
+---
+
+
+
+# 0. Install the library for the Heart Disease Classifier
+
+This section loads all R packages needed for data processing, visualization, model training, evaluation, and interpretability. Warning and message outputs are suppressed to keep the report clean.
+
+Several small helper functions are also defined, including:
+
+* setting a global random seed for reproducibility,
+* checking missing values,
+* inspecting class balance of the target variable, and
+* displaying multiple saved figures in a compact grid layout.
+
+These utilities are reused throughout the analysis to ensure consistent and readable results.
+
+```{r}
+# To suppress the warnings produced by knit
+options(
+  warn = -1,
+  message = FALSE
+)
+
+suppressMessages({
+  suppressWarnings({
+    library(readr)
+    library(dplyr)
+    library(GGally)
+    library(corrplot)
+    library(caret)
+    library(ranger)
+    library(e1071)
+    library(pROC)
+    library(ggplot2)
+    library(jsonlite)
+    library(reshape2)
+    library(knitr)
+    library(plotly)
+    library(htmlwidgets)
+    library(iml)
+  })
+})
+
+# Create the utils which is common in all code
+set_global_seed <- function(seed = 123) {
+  set.seed(seed)
+}
+
+check_missing <- function(df) {
+  colSums(is.na(df))
+}
+
+class_balance <- function(df, target_col = "HeartDisease") {
+  table(df[[target_col]])
+}
+
+# helper -> include multiple images in a grid by controlling knitr out.width (no duplicates)
+include_img_grid <- function(paths, out_width = "49%") {
+  paths <- unique(paths)
+  paths <- paths[file.exists(paths)]
+  if (length(paths) == 0) return(invisible(NULL))
+
+  old <- knitr::opts_current$get("out.width")
+  knitr::opts_current$set(out.width = out_width)
+  on.exit(knitr::opts_current$set(out.width = old), add = TRUE)
+
+  knitr::include_graphics(paths)
+}
+```
+
+# 1. Data Loading & Split
+The dataset is split into three parts: 60% for training, 20% for validation, and 20% for testing.
+This ensures proper model training, tuning, and unbiased performance evaluation.
+
+
+```{r}
+set_global_seed(123)
+input_path <- "heart.csv"
+df <- read_csv(input_path, show_col_types = FALSE)
+
+cat("Raw data dimensions (rows, cols):")
+print(dim(df))
+cat("Column names:")
+print(names(df))
+
+n <- nrow(df)
+idx <- sample.int(n)
+
+train_idx <- idx[1:floor(0.6 * n)]
+val_idx <- idx[(floor(0.6 * n) + 1):floor(0.8 * n)]
+test_idx <- idx[(floor(0.8 * n) + 1):n]
+
+train <- df[train_idx,]
+val<- df[val_idx,]
+test<- df[test_idx, ]
+
+dir.create("./data/processed", showWarnings = FALSE, recursive = TRUE)
+
+write_csv(train,"data/processed/train.csv")
+write_csv(val,"data/processed/val.csv")
+write_csv(test,"data/processed/test.csv")
+
+cat("Data split into train, val, and test with 60/20/20\n")
+cat(" - data/processed/train.csv\n") 
+cat(" - data/processed/val.csv\n")
+cat(" - data/processed/test.csv\n")
+```
+
+## 1.1 Preview Saved Split Files (Train / Val / Test)
+
+The training, validation, and test datasets are loaded to verify that the data splits were saved correctly. The dimensions of each split are printed, followed by a preview of the first five rows. This provides a quick sanity check of the dataset structure before further processing.
+
+```{r}
+train_raw <- read.csv("data/processed/train.csv",stringsAsFactors = FALSE)
+val_raw <- read.csv("data/processed/val.csv", stringsAsFactors = FALSE)
+test_raw <- read.csv("data/processed/test.csv",stringsAsFactors = FALSE)
+
+cat("Train raw dims"); print(dim(train_raw))
+cat("Val raw dims"); print(dim(val_raw))
+cat("Test raw dims");print(dim(test_raw))
+
+cat("\nHead(train_raw):\n"); print(head(train_raw, 5))
+cat("\nHead(val_raw):\n");print(head(val_raw, 5))
+cat("\nHead(test_raw):\n"); print(head(test_raw, 5))
+```
+
+# 2. Preprocessing
+
+This section describes the preprocessing steps applied to the Heart Disease dataset before model training. The goal is to prepare consistent, clean, and reusable training, validation, and test datasets.
+
+## 2.1 Load Split Data
+
+All categorical predictors are converted into factor variables so that models treat them as categories rather than numeric values.
+The target variable (`HeartDisease`) is also converted from numeric labels (0/1) into meaningful factor levels (`No` and `Yes`), which improves interpretability and ensures compatibility with classification metrics used later.
+
+```{r}
+train <- read.csv("data/processed/train.csv", stringsAsFactors = FALSE)
+val <- read.csv("data/processed/val.csv",   stringsAsFactors = FALSE)
+test <- read.csv("data/processed/test.csv",  stringsAsFactors = FALSE)
+```
+
+## 2.2 Factor Conversion
+
+This step converts all categorical columns into factors so the models treat them as categories, not numbers.
+It also converts the target variable (`HeartDisease`) into clear labels (No and Yes) to make training and interpretation easier.
+
+
+```{r}
+cat_cols <- c("Sex", "ChestPainType", "RestingECG","ExerciseAngina", "ST_Slope")
+
+for (col in cat_cols) {
+  train[[col]] <- factor(train[[col]])
+  val[[col]] <- factor(val[[col]], levels = levels(train[[col]]))
+  test[[col]] <- factor(test[[col]], levels = levels(train[[col]]))
+}
+
+
+make_target <- function(x) {
+  if (is.numeric(x) || is.integer(x)) {
+    x <- ifelse(x == 1, "Yes", "No")
+  }
+  factor(x, levels = c("Yes", "No"))
+}
+
+train$HeartDisease <- make_target(train$HeartDisease)
+val$HeartDisease <- make_target(val$HeartDisease)
+test$HeartDisease <- make_target(test$HeartDisease)
+```
+
+## 2.3 Missing Values & Class Balance
+
+The training data is checked for missing values to verify data completeness.
+Class balance of the target variable is also examined to understand whether one class dominates the dataset, which can influence model performance and evaluation.
+
+```{r}
+cat("Missing values in train")
+print(check_missing(train))
+
+cat("Class balance (train):")
+print(class_balance(train))
+```
+
+## 2.4 Standard Scaling
+
+Numeric predictors are standardised using **mean centering and scaling** based only on the training data.
+The same transformation is then applied to the validation and test sets using the fitted scaler. This prevents information leakage and ensures that all datasets are on the same scale.
+
+
+```{r}
+num_cols <- c("Age", "RestingBP", "Cholesterol","FastingBS", "MaxHR", "Oldpeak")
+
+preproc <- preProcess(train[, num_cols], method = c("center", "scale"))
+
+train[,num_cols] <- predict(preproc, train[, num_cols])
+val[,num_cols] <- predict(preproc, val[,num_cols])
+test[,num_cols] <- predict(preproc, test[,num_cols])
+```
+
+## 2.5 Save Processed Data + Scaler
+
+The processed and scaled training, validation, and test datasets are saved to disk so that preprocessing does not need to be repeated in later sections.
+The fitted scaling object is also saved, ensuring that identical transformations can be applied consistently in future runs or deployments.
+
+
+```{r}
+write.csv(train,"data/processed/train_scaled.csv", row.names = FALSE)
+write.csv(val,"data/processed/val_scaled.csv",row.names = FALSE)
+write.csv(test,"data/processed/test_scaled.csv",row.names = FALSE)
+
+if (!dir.exists("checkpoints")) dir.create("checkpoints", recursive = TRUE)
+
+saveRDS(preproc, "checkpoints/scaler.rds")
+cat("Scaler saved as checkpoints/scaler.rds\n")
+
+cat("Saved scaled datasets:\n")
+cat(" - data/processed/train_scaled.csv\n")
+cat(" - data/processed/val_scaled.csv\n")
+cat(" - data/processed/test_scaled.csv\n")
+```
+
+## 2.6 Preview Saved Scaled CSVs (Train / Val / Test)
+
+Finally, the saved scaled datasets are reloaded and previewed to confirm that preprocessing was applied correctly and that the data is ready for subsequent exploratory analysis and model training.
+
+```{r}
+train_scaled_preview <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+val_scaled_preview <- read.csv("data/processed/val_scaled.csv", stringsAsFactors = TRUE)
+test_scaled_preview <- read.csv("data/processed/test_scaled.csv", stringsAsFactors = TRUE)
+
+cat("Head(train_scaled):\n"); print(head(train_scaled_preview, 5))
+cat("Head(val_scaled):\n"); print(head(val_scaled_preview, 5))
+cat("Head(test_scaled):\n");print(head(test_scaled_preview, 5))
+```
+
+# 3. Exploratory Data Analysis
+
+This section provides an overview of the training dataset through summary statistics and visualizations. The goal is to understand the dataset structure, check class balance, and explore how features behave individually and in relation to the target variable (`HeartDisease`). All plots are saved to the `figured/` folder for easy use in the report.
+
+
+```{r}
+dir.create("figured", showWarnings = FALSE)
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+train$HeartDisease <- make_target(train$HeartDisease)
+numeric_cols <- c("Age", "RestingBP", "Cholesterol","FastingBS", "MaxHR", "Oldpeak")
+cat_cols <- c("Sex", "ChestPainType", "RestingECG","ExerciseAngina", "ST_Slope")
+```
+
+## 3.1 Dataset Overview
+
+A helper function prints a basic overview of the dataset, including:
+
+* dataset dimensions (number of rows and columns),
+* data structure and variable types,
+* summary statistics,
+* missing value counts,
+* target class balance.
+
+This gives a quick understanding of the dataset quality and whether the target variable is imbalanced.
+
+```{r}
+print_basic_info <- function(df, target_col) {
+  cat("\ndata overview\n")
+  print(dim(df))
+  str(df)
+  
+  cat("\nsummary:\n")
+  print(summary(df))
+  
+  cat("\nmissing values:\n")
+  print(check_missing(df))
+  
+  cat("\ntarget class balanced or not:\n")
+  print(class_balance(df))
+}
+
+print_basic_info(train, "HeartDisease")
+```
+
+## 3.2 Class Distribution
+
+The class distribution is visualized using a pie chart. This shows the proportion of `"Yes"` vs `"No"` in the training set, providing an initial view of whether the dataset is balanced or skewed. The plot is saved as:
+
+* `figured/heartdisease_pie_chart.png`
+
+```{r}
+pie_data <- train %>%
+  count(HeartDisease) %>%
+  mutate(prop = n / sum(n),lbl = paste0(HeartDisease, " (", scales::percent(prop), ")"))
+
+p <- ggplot(pie_data, aes(x = "", y = prop, fill = HeartDisease)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  theme_void() +
+  labs(title = "HeartDisease Class Distribution (Pie Chart)") +
+  geom_text(aes(label = lbl), position = position_stack(vjust = 0.5))
+
+print(p)
+ggsave("figured/heartdisease_pie_chart.png", plot = p, width = 6, height = 6)
+```
+
+## 3.3 Numeric Feature Distributions
+
+Histograms are generated for each numeric feature to inspect their distributions (spread, skewness, and potential outliers). Each histogram is saved separately in the `figured/` folder (one file per variable). This helps identify features that may have unusual ranges or non-normal shapes.
+
+```{r}
+hist_paths <- c()
+for (col in numeric_cols) {
+  p <- ggplot(train, aes_string(x = col)) +
+    geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+    theme_minimal() +
+    labs(title = paste("Distribution of", col))
+  
+  print(p)
+  outp <- paste0("figured/", col, "_hist.png")
+  ggsave(filename = outp, plot = p, width = 6, height = 4)
+  hist_paths <- c(hist_paths, outp)
+}
+```
+
+## 3.4 Categorical Feature Distributions
+
+Bar plots are created for each categorical variable to observe the frequency of each category. These plots provide insight into how categories are distributed. Each bar chart is saved individually for later use.
+
+```{r}
+bar_paths <- c()
+for (col in cat_cols) {
+  p <- ggplot(train, aes_string(x = col)) +
+    geom_bar(fill = "orange", color = "black") +
+    theme_minimal() +
+    labs(title = paste("Distribution of", col))
+  
+  print(p)
+  outp <- paste0("figured/", col, "_bar.png")
+  ggsave(filename = outp, plot = p, width = 6, height = 4)
+  bar_paths <- c(bar_paths, outp)
+}
+```
+
+## 3.5 Numeric Features vs HeartDisease
+
+To explore how numeric variables differ between heart disease classes, boxplots are created for each numeric feature grouped by `HeartDisease`. This helps identify variables with clear separation between classes and highlights differences in medians and variability.
+
+```{r}
+box_paths <- c()
+for (col in numeric_cols) {
+  p <- ggplot(train, aes_string(x = "HeartDisease", y = col, fill = "HeartDisease")) +
+    geom_boxplot() +
+    theme_minimal() +
+    labs(title = paste(col, "by HeartDisease"))
+  
+  print(p)
+  outp <- paste0("figured/", col, "_boxplot.png")
+  ggsave(filename = outp, plot = p, width = 6, height = 4)
+  box_paths <- c(box_paths, outp)
+}
+```
+
+## 3.6 Categorical Features vs HeartDisease (Proportions plots)
+
+For categorical predictors, stacked proportion bar plots are generated using `position = "fill"`. These plots show how the distribution of `HeartDisease` changes across categories (e.g., whether some categories are associated with higher proportions of `"Yes"` cases). Each plot is saved individually.
+
+```{r}
+prop_paths <- c()
+for (col in cat_cols) {
+  p <- ggplot(train, aes_string(x = col, fill = "HeartDisease")) +
+    geom_bar(position = "fill") +
+    theme_minimal() +
+    labs(title = paste(col, "vs HeartDisease (proportion)"),
+         y = "Proportion")
+  
+  print(p)
+  outp <- paste0("figured/", col, "_prop.png")
+  ggsave(filename = outp, plot = p, width = 6, height = 4)
+  prop_paths <- c(prop_paths, outp)
+}
+```
+
+## 3.7 Correlation Matrix
+
+A correlation matrix is computed for the numeric variables and visualized using `corrplot`. This helps identify:
+
+* strongly correlated feature pairs,
+* potential redundancy between predictors,
+* relationships that may influence model behavior.
+
+The plot is saved as:
+
+* `figured/correlation_matrix.png`
+
+```{r}
+numeric_data <- train[, numeric_cols]
+numeric_data <- data.frame(lapply(numeric_data, as.numeric))
+cor_mat <- cor(numeric_data, use = "complete.obs")
+# show in RStudio first
+corrplot(cor_mat,method = "color",type = "upper",addCoef.col = "black",number.cex = 0.7,tl.cex = 0.8,tl.col = "black")
+# then save to file
+png("figured/correlation_matrix.png", width = 800, height = 600)
+corrplot(cor_mat,method = "color",type = "upper",addCoef.col = "black",
+         number.cex = 0.7,tl.cex = 0.8,tl.col = "black")
+dev.off()
+```
+
+## 3.8 Scatter Plots With Other Features
+
+Several scatter plots are created to explore relationships between `Age` and selected numeric variables (RestingBP, Cholesterol, MaxHR, Oldpeak), colored by `HeartDisease`. These plots help identify trends and separation patterns.
+
+Additional plots include:
+
+* a scatter plot with a LOESS trend line for `Age` vs `MaxHR`, and
+* a faceted plot of `MaxHR` vs `Oldpeak` split by `Sex`.
+
+All scatter plots are saved in the `figured/` folder.
+
+```{r}
+scatter_paths <- c()
+key_pairs <- c("RestingBP", "Cholesterol", "MaxHR", "Oldpeak")
+
+for (col in key_pairs) {
+  p <- ggplot(train, aes_string(x = "Age", y = col, color = "HeartDisease")) +
+    geom_point(alpha = 0.6, size = 2) +
+    theme_minimal() +
+    labs(title = paste("Scatter Plot: Age vs", col), x = "Age", y = col)
+  
+  print(p)
+  outp <- paste0("figured/age_vs_", col, "_scatter.png")
+  ggsave(filename = outp, plot = p, width = 6, height = 4)
+  scatter_paths <- c(scatter_paths, outp)
+}
+
+p <- ggplot(train, aes(Age, MaxHR, color = HeartDisease)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = TRUE) +
+  theme_minimal() +
+  labs(title = "Age vs MaxHR with LOESS Trend")
+
+print(p)
+ggsave("figured/age_vs_maxhr_smooth.png", plot = p, width = 6, height = 4)
+
+p <- ggplot(train, aes(MaxHR, Oldpeak, color = HeartDisease)) +
+  geom_point(alpha = 0.6) +
+  facet_wrap(~ Sex) +
+  theme_minimal() +
+  labs(title = "MaxHR vs Oldpeak (Faceted by Sex)")
+
+print(p)
+ggsave("figured/maxhr_oldpeak_facet_sex.png", plot = p, width = 7, height = 5)
+```
+
+## 3.9 Numeric Pairplot (GGally)
+
+Finally, a pairplot (scatterplot matrix) is generated for all numeric features along with the target label. This provides a compact summary of:
+
+* pairwise relationships,
+* class separation patterns,
+* distribution shapes along the diagonal.
+
+The pairplot is saved as:
+
+* `figured/numeric_pairplot.png`
+
+```{r}
+p <- ggpairs(train[, c(numeric_cols, "HeartDisease")],aes(color = HeartDisease, alpha = 0.5))
+print(p)
+ggsave("figured/numeric_pairplot.png", plot = p, width = 12, height = 12)
+```
+
+
+## 3.10 Hypothesis Testing
+```{r}
+##############################################################
+#                           T-TEST                         
+##############################################################
+t_test <- function(feature_name, group_no, group_yes) {
+
+  n_no  <- length(group_no)
+  n_yes <- length(group_yes)
+  
+  mean_no <- mean(group_no)
+  mean_yes <- mean(group_yes)
+  
+  variance_no <- var(group_no)
+  variance_yes <- var(group_yes)
+  
+  # t-value
+  t_value <- (mean_no - mean_yes) / sqrt(variance_no/n_no + variance_yes/n_yes)
+  
+  # formula -> from Stat Course
+  df <- (variance_no/n_no + variance_yes/n_yes)**2 /
+    ((variance_no**2)/(n_no**2 * (n_no - 1)) +
+       (variance_yes**2)/(n_yes**2 * (n_yes - 1)))
+  
+  # p-value
+  p_value <- 2 * (1 - pt(abs(t_value), df))
+  
+  # print all the conclusion
+  
+  cat("\n----------------------------------------------------------------\n")
+  cat("Feature:", feature_name, "\n\n")
+  
+  # Hypotheses
+  cat("H0(Null Hypothesis): ")
+  cat("People with and without heart disease have similar", feature_name, ".\n\n")
+  
+  cat("Ha(Alternative Hypothesis): ")
+  cat("The two groups do NOT have similar", feature_name, ".\n\n")
+  
+  # Test values
+  cat("Test Results:\n")
+  cat("t-value:", round(t_value, 4), "\n")
+  cat("p-value:", format(p_value, scientific = TRUE), "\n\n")
+  
+  cat("Group Averages:\n")
+  cat("No heart disease:", round(mean_no, 4), "\n")
+  cat("Yes heart disease:", round(mean_yes, 4), "\n\n")
+  
+  # Decision
+  if (p_value < 0.05) {
+    cat("Decision:")
+    cat("The test is significant, so We reject the null hypothesis.\n\n")
+    
+    if (mean_yes > mean_no) {
+      cat("Conclusion:")
+      cat("People with heart disease tend to have higher", feature_name, ".\n")
+      cat("This feature seems related to heart disease.\n")
+    } else {
+      cat("Conclusion:")
+      cat("People without heart disease tend to have higher", feature_name, ".\n")
+      cat("The feature still differs between groups.\n")
+    }
+    
+  } else {
+    cat("Decision:")
+    cat("The test is not significant, so We do not reject the null hypothesis.\n\n")
+    
+    cat("Conclusion:")
+    cat("This feature does not show a meaningful difference between the groups.\n")
+  }
+}
+
+
+##############################################################
+#                        CHI-SQUARE TEST                     #
+##############################################################
+chi_square <- function(feature_name, feature_vector, target_vector) {
+  
+  # Create contingency table - Stat Course
+  tbl <- table(feature_vector, target_vector)
+  observed <- as.matrix(tbl)
+  
+  # Row totals, column totals, grand total
+  row_totals <- rowSums(observed)
+  col_totals <- colSums(observed)
+  grand_total <- sum(observed)
+  
+  # Expected counts (row total * col total / grand total)
+  expected <- outer(row_totals, col_totals) / grand_total
+  
+  # Chi-square statistic
+  chi_square_value <- sum((observed - expected)**2 / expected)
+  
+  # Degrees of freedom
+  df <- (nrow(observed) - 1) * (ncol(observed) - 1)
+  
+  # p-value
+  p_value <- 1 - pchisq(chi_square_value, df)
+  
+  # Print all conclusions
+  cat("\n----------------------------------------------------------------\n")
+  cat("Feature:", feature_name, "\n\n")
+  
+  # Hypotheses
+  cat("H0(Null Hypothesis): ")
+  cat("People with and without heart disease have similar", feature_name, "distribution.\n\n")
+  
+  cat("Ha(Alternative Hypothesis): ")
+  cat("The two groups do NOT have similar", feature_name, "distribution.\n\n")
+  
+  # Test values
+  cat("Test Results:\n")
+  cat("Chi-square value:", round(chi_square_value, 4), "\n")
+  cat("p-value:", format(p_value, scientific = TRUE), "\n")
+  cat("Degrees of freedom:", df, "\n\n")
+  
+  # Decision
+  if (p_value < 0.05) {
+    cat("Decision:")
+    cat("The test is significant, so we reject the null hypothesis.\n\n")
+    
+    cat("Conclusion:")
+    cat("This feature seems related to heart disease.\n")
+    
+  } else {
+    cat("Decision:")
+    cat("The test is not significant, so we do not reject the null hypothesis.\n\n")
+    
+    cat("Conclusion:")
+    cat("This feature does not show a meaningful difference between the groups.\n")
+  }
+}
+
+############################################################
+#       Run the t-tests for each numeric feature
+#                  Features name
+#                ------------------
+#             Age, RestingBP, Cholesterol
+#             FastingBS, MaxHR, Oldpeak
+############################################################
+
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+train$HeartDisease <- make_target(train$HeartDisease)
+numeric_cols <- c("Age", "RestingBP", "Cholesterol","FastingBS", "MaxHR", "Oldpeak")
+
+for (col in numeric_cols) {
+  group_no  <- train[[col]][train$HeartDisease == "No"]
+  group_yes <- train[[col]][train$HeartDisease == "Yes"]
+  
+  t_test(col, group_no, group_yes)
+}
+
+cat("\n*******Chi-Square Tests for Each Categorical Features*******\n")
+
+############################################################
+# Run Chi-Square Tests for Each Categorical Feature
+#                  Features name
+#                ------------------
+#             Sex, ChestPainType, RestingECG
+#                  ExerciseAngina, ST_Slope
+############################################################
+
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+train$HeartDisease <- make_target(train$HeartDisease)
+categorical_cols <- c("Sex", "ChestPainType", "RestingECG","ExerciseAngina", "ST_Slope")
+
+for (col in categorical_cols) {
+  chi_square(feature_name = col,feature_vector = train[[col]],target_vector = train$HeartDisease)
+}
+```
+
+# 4. Model Training & Hyperparameter Tuning
+
+This section tunes Random Forest and Support Vector Machine models using 5-fold cross-validation on the training set. A grid search is used to explore different model configurations, and the optimal hyperparameters are selected based on cross-validated ROC–AUC. Using these optimal settings, each model is then retrained on the combined training and validation data and saved for subsequent evaluation.
+
+
+## 4.1 Random Forest Tuning
+
+The Random Forest model is tuned using 5-fold cross-validation on the training set. Class probabilities are enabled and ROC–AUC is used as the primary selection criterion. Cross-validated predictions are stored for later analysis.
+
+All evaluated hyperparameter combinations and their corresponding cross-validated performance are saved. After selecting the best hyperparameters via cross-validation, the training and validation sets are merged and the final model is retrained once using these settings. The resulting model is saved and used in later evaluation stages.
+
+```{r}
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+val <- read.csv("data/processed/val_scaled.csv",   stringsAsFactors = TRUE)
+
+# Call the make target function
+train$HeartDisease <- make_target(train$HeartDisease)
+val$HeartDisease <- make_target(val$HeartDisease)
+
+ctrl <- trainControl(method = "cv",number = 5,classProbs = TRUE,summaryFunction = twoClassSummary,savePredictions = "final")
+
+grid <- expand.grid(mtry = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), splitrule = c("gini", "extratrees", "hellinger"),
+                    min.node.size = c(3, 5, 7, 9, 11, 13, 15))
+
+rf_tuned <- suppressWarnings(caret::train(HeartDisease ~ .,data = train,method = "ranger",metric = "ROC",
+                                          trControl = ctrl,tuneGrid = grid,importance = "impurity",num.trees = 300,
+                                          sample.fraction = 0.75, # Used 0.6, 0.7, 0.8, but 0.75 is better than others
+                                          replace = TRUE,regularization.factor = 0.01,regularization.use = TRUE))
+
+results_small <- rf_tuned$results[, c("mtry","splitrule","min.node.size","ROC","Sens","Spec")]
+print(head(results_small, 5))
+
+if (!dir.exists("checkpoints")) dir.create("checkpoints", recursive = TRUE)
+
+write.csv(results_small, "checkpoints/rf_results.csv", row.names = FALSE)
+saveRDS(rf_tuned, "checkpoints/rf_tuned.rds")
+saveRDS(rf_tuned$bestTune, "checkpoints/best_rf_params.rds")
+
+full_train <- rbind(train, val)
+# To call the make target class
+full_train$HeartDisease <- make_target(full_train$HeartDisease)
+
+best_rf <- readRDS("checkpoints/best_rf_params.rds")
+
+ctrl_final <- trainControl(method = "none", classProbs = TRUE)
+
+rf_final <- suppressWarnings(caret::train(HeartDisease ~ .,data = full_train,method = "ranger",trControl = ctrl_final,
+                                          tuneGrid = best_rf,importance = "impurity",num.trees = 300,replace = TRUE,
+                                          sample.fraction = 0.75,regularization.factor = 0.01,regularization.use = TRUE
+                                          ))
+
+saveRDS(rf_final, "checkpoints/model_random_forest.rds")
+cat("Final RF model trained on train+val\n")
+```
+
+## 4.2 Support Vector Machine Tuning
+
+The Support Vector Machine with a radial basis function kernel is tuned following the same procedure. A grid search combined with 5-fold cross-validation is applied on the training set, and ROC–AUC is used to identify the best configuration. Cross-validated predictions are again retained.
+
+Once tuning is complete, the final SVM model is retrained on the combined training and validation data using the selected hyperparameters and saved for final evaluation.
+
+```{r}
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+val <- read.csv("data/processed/val_scaled.csv",   stringsAsFactors = TRUE)
+
+# Call the make target function
+train$HeartDisease <- make_target(train$HeartDisease)
+val$HeartDisease <- make_target(val$HeartDisease)
+
+ctrl <- trainControl(method = "cv",number = 5,classProbs = TRUE,summaryFunction = twoClassSummary,savePredictions = "final")
+
+grid <- expand.grid(C = c(1, 5, 10, 20, 50, 100, 150, 200, 250, 500, 750, 1000),sigma = c(0.1, 0.01, 0.05, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009, 0.0001))
+
+svm_tuned <- suppressWarnings(caret::train(HeartDisease ~ .,data = train,method = "svmRadial",metric = "ROC",trControl = ctrl,tuneGrid = grid))
+
+results_small <- svm_tuned$results[, c("C","sigma","ROC","Sens","Spec")]
+print(head(results_small, 5))
+
+write.csv(results_small, "checkpoints/svm_results.csv", row.names = FALSE)
+saveRDS(svm_tuned, "checkpoints/svm_tuned.rds")
+saveRDS(svm_tuned$bestTune, "checkpoints/best_svm_params.rds")
+
+full_train <- rbind(train, val)
+# To call the make target class
+full_train$HeartDisease <- make_target(full_train$HeartDisease)
+
+
+best_svm <- readRDS("checkpoints/best_svm_params.rds")
+ctrl_final <- trainControl(method = "none", classProbs = TRUE)
+
+svm_final <- suppressWarnings(caret::train(HeartDisease ~ .,data = full_train,method = "svmRadial",trControl = ctrl_final,tuneGrid = best_svm))
+
+saveRDS(svm_final, "checkpoints/model_svm.rds")
+cat("Final SVM model trained on train+val\n")
+```
+
+## 4.3 Parallel Coordinates  for Tuning Results
+
+To aid interpretation of the hyperparameter search, tuning results for both models are visualised using parallel coordinate plots. These plots display how model performance varies across the explored configurations and highlight regions associated with higher ROC–AUC. Interactive versions of the plots are saved for further inspection.
+
+
+```{r}
+plot_parallel <- function(csv_path) {
+  
+  dfp <- read.csv(csv_path)
+  df_numeric <- dfp[, sapply(dfp, is.numeric), drop = FALSE]
+  
+  color_col <- if ("ROC" %in% names(df_numeric)) "ROC" else names(df_numeric)[1]
+  
+  plot_ly(type = 'parcoords',line = list(color = df_numeric[[color_col]]),
+    dimensions = lapply(names(df_numeric), function(name) {
+      list(label = name, values = df_numeric[[name]])
+    })
+  )
+}
+
+p_rf <- plot_parallel("checkpoints/rf_results.csv")
+p_svm <- plot_parallel("checkpoints/svm_results.csv")
+
+p_rf
+p_svm
+
+saveWidget(p_rf,"checkpoints/RF_parameter_tuning.html", selfcontained = FALSE)
+saveWidget(p_svm, "checkpoints/SVM_parameter_tuning.html", selfcontained = FALSE)
+
+cat("Saved interactive tuning plots:\n")
+cat(" - checkpoints/RF_parameter_tuning.html\n")
+cat(" - checkpoints/SVM_parameter_tuning.html\n")
+```
+
+# 5. Diagnostics: Train vs Validation
+
+This section assesses model stability by comparing performance on the training and validation sets using the tuned models.
+
+For each model, predictions are generated on both splits, and performance is summarised using accuracy, sensitivity, specificity, precision, F1-score, and ROC–AUC. The resulting metrics are saved for reference.
+
+A bar chart comparing training and validation accuracy is used as a diagnostic tool to identify potential overfitting and to verify that performance remains consistent across data splits.
+
+```{r}
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+val <- read.csv("data/processed/val_scaled.csv",   stringsAsFactors = TRUE)
+
+# Call the make target function
+train$HeartDisease <- make_target(train$HeartDisease)
+val$HeartDisease <- make_target(val$HeartDisease)
+
+if (!dir.exists("artifacts")) dir.create("artifacts", recursive = TRUE)
+
+rf_tuned <- readRDS("checkpoints/rf_tuned.rds")
+svm_tuned <- readRDS("checkpoints/svm_tuned.rds")
+
+compute_metrics_diag <- function(model, data, label = "train") {
+  prob <- predict(model, data, type = "prob")[, "Yes"]
+  pred <- predict(model, data)
+  
+  cm <- confusionMatrix(pred, data$HeartDisease, positive = "Yes")
+  
+  roc_obj <- suppressMessages(pROC::roc(response = data$HeartDisease,predictor = prob,levels = c("No", "Yes")))
+
+  data.frame(Dataset= label,Accuracy= cm$overall["Accuracy"],Sensitivity = cm$byClass["Sensitivity"],
+             Specificity = cm$byClass["Specificity"],
+             Precision= cm$byClass["Precision"],
+             F1= cm$byClass["F1"],
+             AUC= as.numeric(pROC::auc(roc_obj)))
+}
+
+rf_train_metrics <- compute_metrics_diag(rf_tuned, train, "Train_RF")
+rf_val_metrics <- compute_metrics_diag(rf_tuned, val,"Val_RF")
+
+svm_train_metrics <- compute_metrics_diag(svm_tuned, train,"Train_SVM")
+svm_val_metrics <- compute_metrics_diag(svm_tuned, val,"Val_SVM")
+
+diag_metrics <- rbind(rf_train_metrics, rf_val_metrics, svm_train_metrics, svm_val_metrics)
+print(diag_metrics)
+
+write.csv(diag_metrics, "artifacts/diagnostics_train_val_metrics.csv", row.names = FALSE)
+
+plot_data <- diag_metrics
+plot_data$Model <- ifelse(grepl("RF", plot_data$Dataset), "Random Forest", "SVM")
+plot_data$Split <- ifelse(grepl("Train", plot_data$Dataset), "Train", "Validation")
+
+p <- ggplot(plot_data, aes(x = Model, y = Accuracy, fill = Split)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylim(0, 1) +
+  theme_minimal() +
+  labs(title = "Train vs Validation Accuracy for RF and SVM")
+
+print(p)
+
+cat("Diagnostics saved in artifacts/\n")
+```
+
+# 6. Final Evaluation: Threshold Tuning (Youden’s J) + Train/Test Results
+
+In the previous sections, the Random Forest and Support Vector Machine models were already trained and saved.
+This section does not retrain the models. Instead, it focuses on selecting an appropriate probability threshold and evaluating the final models.
+
+### Step 1: Load data and trained models
+
+The training and test datasets are loaded and the previously trained Random Forest and SVM models are then loaded from disk.
+
+### Step 2: Threshold selection using Youden’s index
+
+Rather than using the default classification threshold of 0.5, an optimal threshold was selected for each model using Youden’s index:
+\[
+J = \text{Sensitivity} + \text{Specificity} - 1.
+\]
+
+To avoid using the test set for tuning, thresholds were estimated from pooled cross-validated (out-of-fold) training predictions obtained during model tuning. Youden’s index was evaluated across a grid of candidate thresholds on these out-of-fold predictions, and the threshold maximizing \(J\) was selected. This procedure yields one optimal threshold for Random Forest and one for SVM.
+
+### Step 3: Apply thresholds to final model predictions
+
+Using the selected thresholds, predicted class probabilities from the saved final models are converted into class labels:
+
+* First on the training set, to inspect in-sample performance.
+* Then on the test set, to obtain an unbiased estimate of generalization performance.
+
+### Step 4: Compute evaluation metrics
+
+For both models and both datasets, the following metrics are computed:
+
+* Accuracy
+* Sensitivity (recall)
+* Specificity
+* Precision
+* F1-score
+* ROC–AUC
+
+The results are saved as CSV and JSON files to ensure reproducibility.
+
+### Step 5: Visual diagnostics
+
+To support interpretation:
+
+* Confusion matrices are generated and saved for both training and test sets.
+* ROC curves are plotted on the test set to compare discrimination performance between models.
+
+
+```{r}
+if (!dir.exists("artifacts/final_results")) dir.create("artifacts/final_results", recursive = TRUE)
+
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+test <- read.csv("data/processed/test_scaled.csv",  stringsAsFactors = TRUE)
+
+# Call the make target function
+train$HeartDisease <- make_target(train$HeartDisease)
+test$HeartDisease  <- make_target(test$HeartDisease)
+
+rf_model <- readRDS("checkpoints/model_random_forest.rds")
+svm_model <- readRDS("checkpoints/model_svm.rds")
+
+rf_tuned <- readRDS("checkpoints/rf_tuned.rds")
+svm_tuned <- readRDS("checkpoints/svm_tuned.rds")
+
+tune_threshold_youden_pooled <- function(model) {
+  preds <- model$pred
+  obs <- factor(preds$obs, levels = c("Yes", "No"))
+  prob_yes <- preds$Yes
+  
+  best_value <- -Inf
+  best_t <- 0.5
+  
+  for (t in seq(0.001, 0.999, by = 0.001)) {
+    predicted_class <- ifelse(prob_yes >= t, "Yes", "No")
+    
+    cm <- caret::confusionMatrix(factor(predicted_class, levels = c("Yes", "No")),obs,positive = "Yes")
+    
+    sens <- cm$byClass["Sensitivity"]
+    spec <- cm$byClass["Specificity"]
+    
+    J <- sens + spec - 1
+    
+    if (!is.na(J) && J > best_value) {
+      best_value <- J
+      best_t <- t
+    }
+  }
+  
+  return(best_t)
+}
+
+best_t_rf <- tune_threshold_youden_pooled(rf_tuned)
+best_t_svm <- tune_threshold_youden_pooled(svm_tuned)
+
+
+write_json(list(threshold = best_t_rf),"artifacts/final_results/threshold_rf.json",  pretty = TRUE)
+write_json(list(threshold = best_t_svm), "artifacts/final_results/threshold_svm.json", pretty = TRUE)
+
+compute_metrics_final <- function(prob, pred_class, data) {
+  cm <- caret::confusionMatrix(factor(pred_class, levels = c("Yes", "No")),data$HeartDisease,positive = "Yes")
+  roc_obj <- suppressMessages(pROC::roc(data$HeartDisease, prob, levels = c("No", "Yes")))
+  data.frame(Accuracy= cm$overall["Accuracy"],Sensitivity = cm$byClass["Sensitivity"],
+             Specificity =cm$byClass["Specificity"],
+             Precision=cm$byClass["Precision"],
+             F1= cm$byClass["F1"],
+             AUC= as.numeric(pROC::auc(roc_obj)))
+}
+
+# APPLY THRESHOLDS -> TRAIN
+rf_prob_train <- predict(rf_model, train, type = "prob")[, "Yes"]
+rf_pred_train <- ifelse(rf_prob_train >= best_t_rf, "Yes", "No")
+
+svm_prob_train <- predict(svm_model, train, type = "prob")[, "Yes"]
+svm_pred_train <- ifelse(svm_prob_train >= best_t_svm, "Yes", "No")
+
+metrics_train <- rbind(
+  cbind(Model = "Random Forest", compute_metrics_final(rf_prob_train,  rf_pred_train,train)),
+  cbind(Model = "SVM",compute_metrics_final(svm_prob_train, svm_pred_train, train))
+)
+
+write_json(metrics_train, "artifacts/final_results/train_metrics.json", pretty = TRUE)
+write.csv(metrics_train,  "artifacts/final_results/train_metrics.csv", row.names = FALSE)
+
+# APPLY THRESHOLDS -> TEST
+rf_prob_test <- predict(rf_model, test, type = "prob")[, "Yes"]
+rf_pred_test <- ifelse(rf_prob_test >= best_t_rf, "Yes", "No")
+
+svm_prob_test <- predict(svm_model, test, type = "prob")[, "Yes"]
+svm_pred_test <- ifelse(svm_prob_test >= best_t_svm, "Yes", "No")
+
+metrics_test <- rbind(
+  cbind(Model = "Random Forest", compute_metrics_final(rf_prob_test,  rf_pred_test,  test)),
+  cbind(Model = "SVM",compute_metrics_final(svm_prob_test, svm_pred_test, test))
+)
+
+write_json(metrics_test, "artifacts/final_results/test_metrics.json", pretty = TRUE)
+write.csv(metrics_test,  "artifacts/final_results/test_metrics.csv", row.names = FALSE)
+
+cat("\nFinal TRAIN results (from artifacts/final_results/train_metrics.csv):\n")
+print(read.csv("artifacts/final_results/train_metrics.csv"))
+
+cat("\nFinal TEST results (from artifacts/final_results/test_metrics.csv):\n")
+print(read.csv("artifacts/final_results/test_metrics.csv"))
+
+# Confusion matrices (TRAIN + TEST) -> SAVE + SHOW
+plot_confusion <- function(cm, title) {
+  df_cm <- as.data.frame(cm$table)
+  ggplot(df_cm, aes(Prediction, Reference, fill = Freq)) +
+    geom_tile() +
+    geom_text(aes(label = Freq), color = "white", size = 5) +
+    scale_fill_gradient(low = "blue", high = "red") +
+    theme_minimal() +
+    labs(title = title)
+}
+
+cm_rf_train <- caret::confusionMatrix(factor(rf_pred_train, levels=c("Yes","No")), train$HeartDisease, positive="Yes")
+cm_svm_train <- caret::confusionMatrix(factor(svm_pred_train, levels=c("Yes","No")), train$HeartDisease, positive="Yes")
+
+ggsave("artifacts/final_results/confusion_rf_train.png", plot_confusion(cm_rf_train, "RF Confusion Matrix (Train)"),
+       width = 5, height = 4)
+ggsave("artifacts/final_results/confusion_svm_train.png",
+       plot_confusion(cm_svm_train, "SVM Confusion Matrix (Train)"),
+       width = 5, height = 4)
+
+cm_rf_test  <- caret::confusionMatrix(factor(rf_pred_test, levels=c("Yes","No")), test$HeartDisease, positive="Yes")
+cm_svm_test <- caret::confusionMatrix(factor(svm_pred_test, levels=c("Yes","No")), test$HeartDisease, positive="Yes")
+
+ggsave("artifacts/final_results/confusion_rf_test.png",plot_confusion(cm_rf_test, "RF Confusion Matrix (Test)"),width = 5, height = 4)
+ggsave("artifacts/final_results/confusion_svm_test.png",plot_confusion(cm_svm_test, "SVM Confusion Matrix (Test)"),
+       width = 5, height = 4)
+
+include_img_grid(c("artifacts/final_results/confusion_rf_train.png","artifacts/final_results/confusion_svm_train.png",
+                   "artifacts/final_results/confusion_rf_test.png","artifacts/final_results/confusion_svm_test.png"),
+                 out_width = "49%")
+
+# ROC Curve -> SAVE + SHOW
+roc_rf <- suppressMessages(pROC::roc(test$HeartDisease, rf_prob_test, levels = c("No","Yes")))
+roc_svm <- suppressMessages(pROC::roc(test$HeartDisease, svm_prob_test, levels = c("No","Yes")))
+
+png("artifacts/final_results/roc_curve_rf_svm.png", width = 900, height = 600)
+plot(roc_rf, col = "blue", main = "ROC Curve: RF vs SVM")
+plot(roc_svm, col = "red", add = TRUE)
+legend("bottomright",
+       legend = c("Random Forest", "SVM"),
+       col = c("blue", "red"), lwd = 2)
+dev.off()
+
+include_img_grid("artifacts/final_results/roc_curve_rf_svm.png", out_width = "90%")
+
+cat("Train + Test evaluation with threshold tuning completed\n")
+```
+
+# 7. Metrics Comparison Plot
+
+Finally, the test-set metrics are reshaped into a long format and visualized using a grouped bar chart.
+This plot provides a concise comparison of Random Forest and SVM performance across all evaluation metrics, highlighting strengths and weaknesses of each model under the selected operating thresholds.
+
+
+```{r}
+metric_long <- melt(metrics_test,id.vars = "Model",
+                    measure.vars = c("Accuracy", "Sensitivity","Specificity", "Precision","F1", "AUC"),variable.name = "Metric",value.name = "Value")
+
+p <- ggplot(metric_long, aes(x = Metric, y = Value, fill = Model)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme_minimal(base_size = 13) +
+  labs(title = "Performance Metrics Comparison: Random Forest vs SVM",x = "Metric",y = "Score") +
+  scale_fill_manual(values = c("Random Forest" = "steelblue","SVM" = "firebrick")) +
+  ylim(0, 1)
+
+ggsave("artifacts/final_results/metric_comparison.png", p, width = 8, height = 5)
+include_img_grid("artifacts/final_results/metric_comparison.png", out_width = "80%")
+cat("Metric comparison plot saved.\n")
+```
+
+# 8. XAI for Heart Disease Classifier - Feature Importance and ALE
+
+This section explains the models by showing which features matter most and how they affect predictions.
+It saves and displays permutation feature importance and ALE plots for the top important features for both Random Forest and SVM.
+
+### Step 1: Data preparation for interpretation
+
+The scaled training and validation datasets are first loaded and merged. The response variable (`HeartDisease`) is treated as a factor, with `"Yes"` defined as the positive class. The predictor variables and the target variable are then separated to prepare the data for explainability analysis.
+
+### Step 2: Global feature importance (Permutation Importance)
+
+Permutation Feature Importance is used to measure the global importance of each predictor. This method evaluates how much the model’s predictive performance decreases when the values of a single feature are randomly permuted. A larger decrease indicates that the feature is more important for the model’s predictions.
+
+Permutation importance is computed separately for Random Forest and SVM. The resulting importance scores are visualized using bar plots and saved for later use. This allows a direct comparison of which features are considered most influential by each model.
+
+### Step 3: Global feature effects (Accumulated Local Effects – ALE)
+
+To understand how the most important features affect predictions, Accumulated Local Effects (ALE) plots are generated. ALE plots show the average change in predicted risk as a feature value changes, while accounting for correlations between predictors.
+
+For each model, the top three most important features (based on permutation importance) are selected. ALE plots are then created for these features for both Random Forest and SVM. Each plot illustrates whether increasing or decreasing a feature leads to higher or lower predicted probability of heart disease.
+
+
+
+```{r}
+set_global_seed(123)
+
+train <- read.csv("data/processed/train_scaled.csv", stringsAsFactors = TRUE)
+val <- read.csv("data/processed/val_scaled.csv",   stringsAsFactors = TRUE)
+
+full_train <- rbind(train, val)
+# Call the make target function
+full_train$HeartDisease <- make_target(full_train$HeartDisease)
+
+X <- dplyr::select(full_train, -HeartDisease)
+y <- full_train$HeartDisease
+
+# Load Final Models
+rf_model <- readRDS("checkpoints/model_random_forest.rds")
+svm_model <- readRDS("checkpoints/model_svm.rds")
+
+out_dir <- "artifacts/interpret"
+if (!dir.exists(out_dir)) {
+  dir.create(out_dir, recursive = TRUE)
+}
+
+# Create iml Predictors : RF + SVM 
+pred_rf <- Predictor$new(model = rf_model,data  = X,y= y,type = "prob")
+pred_svm <- Predictor$new(model = svm_model,data  = X,y= y,type  = "prob")
+
+# Permutation Feature Importance
+
+# Random Forest – permutation importance
+imp_rf <- FeatureImp$new(pred_rf, loss = "ce")
+imp_df <- imp_rf$results
+
+p_rf_imp <- ggplot(imp_df,aes(x = reorder(feature, importance), y = importance)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "RF Feature Importance (Permutation)",x = "Feature",y = "Importance")
+
+print(p_rf_imp) 
+
+ggsave(file.path(out_dir, "rf_feature_importance_bar.png"),p_rf_imp, width = 6, height = 4)
+
+# SVM – permutation importance
+imp_svm <- FeatureImp$new(pred_svm, loss = "ce")
+imp_svm_df <- imp_svm$results
+
+p_svm_imp <- ggplot(imp_svm_df,
+                    aes(x = reorder(feature, importance), y = importance)) +
+  geom_col(fill = "darkred") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "SVM Feature Importance (Permutation)",x = "Feature",y = "Importance")
+
+print(p_svm_imp)
+
+ggsave(file.path(out_dir, "svm_feature_importance_bar.png"), p_svm_imp, width = 6, height = 4)
+
+
+# ALE plots (Accumulated Local Effects)
+# Use top-important features (including categorical)
+# Take top-k features from permutation importance for each model
+k <- 3
+top_rf<- head(imp_df[order(-imp_df$importance), "feature"], k)
+top_svm <- head(imp_svm_df[order(-imp_svm_df$importance), "feature"], k)
+
+# Union to get a shared set of important features
+ale_features <- unique(c(as.character(top_rf), as.character(top_svm)))
+
+save_ale <- function(predictor_obj, feature_name, model_tag) {
+  fe <- FeatureEffect$new(predictor_obj,feature = feature_name,method  = "ale")
+  p <- plot(fe) +
+    theme_minimal() +
+    labs(title = paste0(model_tag, " ALE: ", feature_name),x = feature_name,y = "Accumulated local effect")
+  print(p)
+  ggsave(file.path(out_dir, paste0(tolower(model_tag), "_ale_", feature_name, ".png")),p, width = 6, height = 4)
+}
+for (f in ale_features) {
+  try(save_ale(pred_rf,  f, "RF"),  silent = TRUE)
+  try(save_ale(pred_svm, f, "SVM"), silent = TRUE)
+}
+
+cat("Saved: permutation feature importance and ALE plots for top-important features.\n")
+```
+
+
+# 9. Overall Comparison, Use of AI Tools, and References
+
+## 9.1 Model Comparision
+Both Random Forest and SVM demonstrate strong and consistent predictive performance across all evaluation metrics.
+The SVM achieves slightly higher Accuracy, Sensitivity, Specificity, Precision, F1-score, and ROC–AUC than the Random Forest, indicating a modest but consistent advantage in classification performance. Importantly, both models show comparable discrimination ability and reliable performance, supporting the robustness of the result.
+
+## 9.2 Use of AI Tools
+
+Parts of the writing, LaTeX formatting, and code refinement were supported using large language models (ChatGPT, Grok, and Gemini). All outputs were reviewed and validated by the authors, and the final responsibility for content, analysis, and conclusions remains with the authors.
+
+## 9.3 References
+
+[1] Kumar, R., et al. (2025). A comprehensive review of machine learning for heart disease prediction. *Frontiers in Artificial Intelligence*.
+
+[2] Ekle, F. A., et al. (2024). Machine learning models for heart disease prediction: a comparative summary of supervised algorithms. *Journal of Healthcare Informatics Research*.
+
+[3] Hossain, S., et al. (2024). Machine learning approach for predicting cardiovascular disease. *Cardiovascular Informatics Journal*.
+
+[4] Rimal, Y., et al. (2025). Comparative analysis of heart disease prediction using Logistic Regression, SVM, KNN, and Random Forest. *Scientific Reports*.
+
+[5] Baxani, R., & Edinburgh, M. (2022). Heart Disease Prediction Using Machine Learning Algorithms: Logistic Regression, Support Vector Machine and Random Forest Techniques. *International Journal of Computing and Digital Systems*.
+
+[6] Soriano, F. (2020). Heart Failure Prediction Dataset. *Kaggle*. https://www.kaggle.com/datasets/fedesoriano/heart-failure-prediction
+
+[7] Breiman, L. (2001). Random forests. *Machine Learning, 45*(1), 5–32.
+
+[8] Cortes, C., Vapnik, V. (1995). Support-vector networks. *Machine Learning, 20*, 273–297.
+
+[9] Florkowski, C. M. (2008). Sensitivity, specificity, ROC curves, and Youden’s index. *Clin Biochem Rev, 29*(Suppl 1), S83–S87.
+
+[10] Molnar, C. (2022). *Interpretable Machine Learning*. https://christophm.github.io/interpretable-ml-book/
+
+[11] Lundberg, S. M., Lee, S.-I. (2017). A Unified Approach to Interpreting Model Predictions. *NeurIPS*.
+
+[12] OpenAI (2025). ChatGPT. Large language model. Accessed: 27 Dec 2025.
+
+[13] xAI (2025). Grok. Large language model. Accessed: 27 Dec 2025.
+
+[14] Google (2025). Gemini. Large language model. Accessed: 27 Dec 2025.
